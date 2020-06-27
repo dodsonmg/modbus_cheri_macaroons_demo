@@ -20,8 +20,10 @@
 # define MSG_NOSIGNAL 0
 #endif
 
-#include <modbus/modbus.h>
-#include "unit-test.h"
+extern "C" {
+    #include <modbus/modbus.h>
+    #include "unit-test.h"
+}
 
 /* For CHERI */
 #ifndef __has_feature
@@ -29,7 +31,9 @@
 #endif
 
 #if __has_feature(capabilities)
-#include "cheri_modbus_shim.h"
+extern "C" {
+    #include "cheri_modbus_shim.h"
+}
 #endif
 
 
@@ -70,17 +74,17 @@ int main(int argc, char*argv[])
 
     if (use_backend == TCP) {
         ctx = modbus_new_tcp("127.0.0.1", 1502);
-        query = malloc(MODBUS_TCP_MAX_ADU_LENGTH);
-        rsp = malloc(MODBUS_TCP_MAX_ADU_LENGTH);
+        query = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
+        rsp = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
     } else if (use_backend == TCP_PI) {
         ctx = modbus_new_tcp_pi("::0", "1502");
-        query = malloc(MODBUS_TCP_MAX_ADU_LENGTH);
-        rsp = malloc(MODBUS_TCP_MAX_ADU_LENGTH);
+        query = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
+        rsp = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
     } else {
         ctx = modbus_new_rtu("/dev/ttyUSB0", 115200, 'N', 8, 1);
         modbus_set_slave(ctx, SERVER_ID);
-        query = malloc(MODBUS_RTU_MAX_ADU_LENGTH);
-        rsp = malloc(MODBUS_RTU_MAX_ADU_LENGTH);
+        query = (uint8_t *)malloc(MODBUS_RTU_MAX_ADU_LENGTH);
+        rsp = (uint8_t *)malloc(MODBUS_RTU_MAX_ADU_LENGTH);
     }
     header_length = modbus_get_header_length(ctx);
 
@@ -157,7 +161,7 @@ int main(int argc, char*argv[])
                        == UT_REGISTERS_ADDRESS_INVALID_TID_OR_SLAVE) {
                 const int RAW_REQ_LENGTH = 5;
                 uint8_t raw_req[] = {
-                    (use_backend == RTU) ? INVALID_SERVER_ID : 0xFF,
+                    static_cast<uint8_t>((use_backend == RTU) ? INVALID_SERVER_ID : 0xFF),
                     0x03,
                     0x02, 0x00, 0x00
                 };

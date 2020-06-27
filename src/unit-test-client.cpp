@@ -9,9 +9,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <modbus/modbus.h>
 
-#include "unit-test.h"
+extern "C" {
+    #include <modbus/modbus.h>
+    #include "unit-test.h"
+}
 
 // ignore variadic arguments from the ASSERT_TRUE macro
 #pragma GCC diagnostic push
@@ -98,9 +100,7 @@ int main(int argc, char *argv[])
         return -1;
     }
     modbus_set_debug(ctx, TRUE);
-    modbus_set_error_recovery(ctx,
-                              MODBUS_ERROR_RECOVERY_LINK |
-                              MODBUS_ERROR_RECOVERY_PROTOCOL);
+    modbus_set_error_recovery(ctx, MODBUS_ERROR_RECOVERY_LINK_AND_PROTOCOL);
 
     if (use_backend == RTU) {
         modbus_set_slave(ctx, SERVER_ID);
@@ -706,7 +706,7 @@ int test_server(modbus_t *ctx, int use_backend)
     int i;
     /* Read requests */
     const int READ_RAW_REQ_LEN = 6;
-    const int slave = (use_backend == RTU) ? SERVER_ID : MODBUS_TCP_SLAVE;
+    const uint8_t slave = static_cast<uint8_t>((use_backend == RTU) ? SERVER_ID : MODBUS_TCP_SLAVE);
     uint8_t read_raw_req[] = {
         slave,
         /* function, address, 5 values */

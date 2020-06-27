@@ -24,7 +24,7 @@ find_package(libmodbus REQUIRED)
 find_package(libmacaroons REQUIRED)
 
 add_executable(unit_test_client
-  src/unit-test-client.c)
+  src/unit-test-client.cpp)
 target_include_directories(unit_test_client PRIVATE
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
@@ -35,7 +35,7 @@ unit_test_client
 DESTINATION lib/${PROJECT_NAME})
 
 add_executable(unit_test_server
-  src/unit-test-server.c
+  src/unit-test-server.cpp
   src/cheri_modbus_shim.c)
 target_include_directories(unit_test_server PRIVATE
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
