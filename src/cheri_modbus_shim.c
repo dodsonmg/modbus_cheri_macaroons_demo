@@ -42,6 +42,9 @@ void modbus_print_function(int function)
         case MODBUS_FC_WRITE_AND_READ_REGISTERS:
             printf("MODBUS_FC_WRITE_AND_READ_REGISTERS\n");
             break;
+        case MODBUS_FC_WRITE_STRING:
+            printf("MODBUS_FC_WRITE_STRING\n");
+            break;
         default:
             printf("ILLEGAL FUNCTION\n");
     }

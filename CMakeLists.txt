@@ -23,27 +23,52 @@ find_package(ament_cmake REQUIRED)
 find_package(libmodbus REQUIRED)
 find_package(libmacaroons REQUIRED)
 
-add_executable(unit_test_client
-  src/unit-test-client.cpp)
-target_include_directories(unit_test_client PRIVATE
+# Build modbus unit tests for client and server
+add_executable(modbus_unit_test_client
+  src/modbus-unit-test-client.cpp)
+target_include_directories(modbus_unit_test_client PRIVATE
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(unit_test_client libmodbus libmacaroons)
+ament_target_dependencies(modbus_unit_test_client libmodbus libmacaroons)
 
 install(TARGETS
-unit_test_client
+modbus_unit_test_client
 DESTINATION lib/${PROJECT_NAME})
 
-add_executable(unit_test_server
-  src/unit-test-server.cpp
+add_executable(modbus_unit_test_server
+  src/modbus-unit-test-server.cpp
   src/cheri_modbus_shim.c)
-target_include_directories(unit_test_server PRIVATE
+target_include_directories(modbus_unit_test_server PRIVATE
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(unit_test_server libmodbus libmacaroons)
+ament_target_dependencies(modbus_unit_test_server libmodbus libmacaroons)
 
 install(TARGETS
-unit_test_server
+modbus_unit_test_server
+DESTINATION lib/${PROJECT_NAME})
+
+# Build modbus-macaroons tests for client and server
+add_executable(macaroons_test_client
+  src/macaroons-test-client.cpp)
+target_include_directories(macaroons_test_client PRIVATE
+$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+$<INSTALL_INTERFACE:include>)
+ament_target_dependencies(macaroons_test_client libmodbus libmacaroons)
+
+install(TARGETS
+macaroons_test_client
+DESTINATION lib/${PROJECT_NAME})
+
+add_executable(macaroons_test_server
+  src/macaroons-test-server.cpp
+  src/cheri_modbus_shim.c)
+target_include_directories(macaroons_test_server PRIVATE
+$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+$<INSTALL_INTERFACE:include>)
+ament_target_dependencies(macaroons_test_server libmodbus libmacaroons)
+
+install(TARGETS
+macaroons_test_server
 DESTINATION lib/${PROJECT_NAME})
 
 print_all_variables()
