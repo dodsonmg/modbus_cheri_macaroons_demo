@@ -1,3 +1,6 @@
+#ifndef _CHERI_MODBUS_SHIM_
+#define _CHERI_MODBUS_SHIM_
+
 /* For CHERI */
 #ifndef __has_feature
 #define __has_feature(x) 0
@@ -24,3 +27,5 @@ modbus_mapping_t* modbus_mapping_new_start_address_cap(
 int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
                                int req_length, uint8_t *rsp, int *rsp_length,
                                modbus_mapping_t *mb_mapping);
+
+#endif /* _CHERI_MODBUS_SHIM_ */

@@ -1,3 +1,6 @@
+#ifndef _CHERI_HELPER_H_
+#define _CHERI_HELPER_H_
+
 #include <cheriintrin.h>
 // #include "libcheri_type.h"
 
@@ -47,3 +50,5 @@
         (cheri_perms_get(cap) & CHERI_PERM_UNSEAL) > 0 ? 1 : 0, \
         (cheri_perms_get(cap) & CHERI_PERM_SYSTEM_REGS) > 0 ? 1 : 0 \
         )
+
+#endif /* _CHERI_HELPER_H_ */

@@ -4,17 +4,23 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <stdio.h>
+#include <iostream>
+// #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 
+
 extern "C" {
     #include <modbus/modbus.h>
     #include "unit-test.h"
 }
+
+/* macaroons */
+#include "macaroons/macaroons.hpp"
+#include "cheri_macaroons_modbus_shim.hpp"
 
 // ignore variadic arguments from the ASSERT_TRUE macro
 #pragma GCC diagnostic push
@@ -51,6 +57,17 @@ int equal_dword(uint16_t *tab_reg, const uint32_t value) {
     return ((tab_reg[0] == (value >> 16)) && (tab_reg[1] == (value & 0xFFFF)));
 }
 
+std::string hex_encode(const std::vector<unsigned char> &data)
+{
+    std::stringstream stream;
+    stream.fill('0');
+
+    for (auto c : data)
+        stream << std::hex << std::setw(2) << static_cast<unsigned int>(c);
+
+    return stream.str();
+}
+
 int main(int argc, char *argv[])
 {
     const int NB_REPORT_SLAVE_ID = 10;
@@ -73,8 +90,17 @@ int main(int argc, char *argv[])
     int success = FALSE;
     int old_slave;
 
-    uint8_t msg[] = "hello1";
+    /* to test write_string */
+    uint8_t msg[] = "this is a test string";
     int msg_length = strlen((const char *)msg);
+
+    /* to test macaroons */
+    std::string key = "a bad secret";
+    std::string id = "id for a bad secret";
+    std::string location = "https://www.modbus.com/macaroons/";
+    std::string expected_signature = "27c9baef16ae041625139857bfca2cebebdcba4ce6637c59ea2693107cf053ce";
+    std::string serialised;
+    macaroons::Macaroon M{location, key, id};
 
     if (argc > 1) {
         if (strcmp(argv[1], "tcp") == 0) {
@@ -140,7 +166,7 @@ int main(int argc, char *argv[])
     /** COIL BITS **/
 
     /* Single */
-    rc = modbus_write_bit(ctx, UT_BITS_ADDRESS, ON);
+    rc = modbus_write_bit(ctx, UT_BITS_ADDRESS, ON, MACAROONS_SHIM);
     printf("1/2 modbus_write_bit: ");
     ASSERT_TRUE(rc == 1, "");
 
@@ -181,11 +207,28 @@ int main(int argc, char *argv[])
     printf("OK!\n");
     /* End of multiple bits */
 
-    /* TEST ARBITRARY MESSGES */
-    rc = modbus_write_string(ctx, 0x0, msg, msg_length);
-    printf("1/1 modbus_write_string: ");
-    ASSERT_TRUE(rc == msg_length, "FAILED (%d != %d)\n",
-                    rc, msg_length);
+    // /* TEST ARBITRARY MESSGES */
+    // rc = modbus_write_string(ctx, msg, msg_length);
+    // printf("1/1 modbus_write_string: ");
+    // ASSERT_TRUE(rc == msg_length, "FAILED (%d != %d)\n",
+    //                 rc, msg_length);
+
+    // /* TEST MACAROONS */
+    // printf("1/3 macaroons identifier: ");
+    // ASSERT_TRUE(M.identifier() == id, "FAILED id check: (%s != %s)\n",
+    //     M.identifier().c_str(), id.c_str());
+    // printf("2/3 macaroons location: ");
+    // ASSERT_TRUE(M.location() == location, "FAILED location check: (%s != %s)\n",
+    //     M.location().c_str(), id.c_str());
+    // std::cout << "3/3 macaroons signature: ";
+    // ASSERT_TRUE(hex_encode(M.signature()) == expected_signature,
+    //     "FAILED signature check:\n\t%s !=\n\t%s\n", hex_encode(M.signature()).c_str(), expected_signature.c_str());
+
+    // serialised = M.serialize();
+    // rc = modbus_write_string(ctx, (uint8_t *)serialised.c_str(), (int)serialised.length());
+    // printf("4/4 macaroons send serialised: ");
+    // ASSERT_TRUE(rc == (int)serialised.length(), "FAILED (%d != %d)\n",
+    //                 rc, (int)serialised.length());
 
     // /** DISCRETE INPUTS **/
     // rc = modbus_read_input_bits(ctx, UT_INPUT_BITS_ADDRESS,

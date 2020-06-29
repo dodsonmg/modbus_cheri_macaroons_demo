@@ -49,7 +49,8 @@ DESTINATION lib/${PROJECT_NAME})
 
 # Build modbus-macaroons tests for client and server
 add_executable(macaroons_test_client
-  src/macaroons-test-client.cpp)
+  src/macaroons-test-client.cpp
+  src/macaroons_modbus_shim.cpp)
 target_include_directories(macaroons_test_client PRIVATE
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
@@ -61,7 +62,8 @@ DESTINATION lib/${PROJECT_NAME})
 
 add_executable(macaroons_test_server
   src/macaroons-test-server.cpp
-  src/cheri_modbus_shim.c)
+  src/cheri_modbus_shim.c
+  src/macaroons_modbus_shim.cpp)
 target_include_directories(macaroons_test_server PRIVATE
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)

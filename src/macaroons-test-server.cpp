@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <stdio.h>
+#include <iostream>
+// #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -24,6 +25,9 @@ extern "C" {
     #include <modbus/modbus.h>
     #include "unit-test.h"
 }
+
+#include "macaroons/macaroons.hpp"
+#include "cheri_macaroons_modbus_shim.hpp"
 
 /* For CHERI */
 #ifndef __has_feature
@@ -55,6 +59,15 @@ int main(int argc, char*argv[])
     uint8_t *rsp = NULL;
     int rsp_length = 0;
     int header_length;
+
+    /* to test macaroons */
+    std::string key = "a bad secret";
+    std::string id = "id for a bad secret";
+    std::string location = "https://www.modbus.com/macaroons/";
+    std::string expected_signature = "27c9baef16ae041625139857bfca2cebebdcba4ce6637c59ea2693107cf053ce";
+    std::string serialised;
+    macaroons::Macaroon M;
+    macaroons::Verifier V;
 
     if (argc > 1) {
         if (strcmp(argv[1], "tcp") == 0) {
@@ -200,8 +213,7 @@ int main(int argc, char*argv[])
             }
         }
 
-        // rc = modbus_process_request_cap(ctx, query, rc, rsp, &rsp_length, mb_mapping);
-        rc = modbus_process_request(ctx, query, rc, rsp, &rsp_length, mb_mapping);
+        rc = modbus_process_request(ctx, query, rc, rsp, &rsp_length, mb_mapping, MACAROONS_SHIM);
         if (rc == -1) {
             break;
         }
