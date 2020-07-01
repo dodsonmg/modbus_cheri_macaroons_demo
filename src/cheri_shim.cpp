@@ -50,6 +50,17 @@ void modbus_print_function(int function)
     }
 }
 
+void
+print_mb_mapping(modbus_mapping_t* mb_mapping)
+{
+    printf("mb_mapping:\t\t\t\t%#p\n", (void *)mb_mapping);
+    printf("mb_mapping->tab_bits:\t\t\t%#p\n", (void *)mb_mapping->tab_bits);
+    printf("mb_mapping->tab_input_bits:\t\t%#p\n", (void *)mb_mapping->tab_input_bits);
+    printf("mb_mapping->tab_input_registers:\t%#p\n", (void *)mb_mapping->tab_input_registers);
+    printf("mb_mapping->tab_registers:\t\t%#p\n", (void *)mb_mapping->tab_registers);
+    printf("mb_mapping->tab_string:\t\t\t%#p\n", (void *)mb_mapping->tab_string);
+}
+
 /**
  * Shim function for libmodbus:modbus_mapping_new_start_address
  *
@@ -65,7 +76,7 @@ void modbus_print_function(int function)
  * pointer and returning that to the caller to libmodbus cannot retain
  * a fully-privileged pointer to the structure
  * */
-modbus_mapping_t* modbus_mapping_new_start_address_cap(
+modbus_mapping_t* modbus_mapping_new_start_address_cheri(
     unsigned int start_bits, unsigned int nb_bits,
     unsigned int start_input_bits, unsigned int nb_input_bits,
     unsigned int start_registers, unsigned int nb_registers,
@@ -92,6 +103,11 @@ modbus_mapping_t* modbus_mapping_new_start_address_cap(
     // may need to read and write to holding registers
     mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, CHERI_PERM_LOAD | CHERI_PERM_STORE);
 
+    // may need to read and write to the string (used for Macaroons)
+    mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, CHERI_PERM_LOAD | CHERI_PERM_STORE);
+
+    print_mb_mapping(mb_mapping);
+
     return mb_mapping;
 }
 
@@ -103,9 +119,9 @@ modbus_mapping_t* modbus_mapping_new_start_address_cap(
  *
  * This shim [DOES WHAT?]
  * */
-int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
-                              int req_length, uint8_t *rsp, int *rsp_length,
-                              modbus_mapping_t *mb_mapping)
+int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
+                                int req_length, uint8_t *rsp, int *rsp_length,
+                                modbus_mapping_t *mb_mapping, shim_t shim)
 {
     int rc;
     int function;
@@ -113,6 +129,7 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
     uint8_t *tab_input_bits_;
     uint16_t *tab_input_registers_;
     uint16_t *tab_registers_;
+    uint8_t *tab_string_;
     modbus_mapping_t *mb_mapping_;
 
     function = modbus_get_function(ctx, req);
@@ -133,6 +150,7 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
     tab_input_bits_ = mb_mapping->tab_input_bits;
     tab_input_registers_ = mb_mapping->tab_input_registers;
     tab_registers_ = mb_mapping->tab_registers;
+    tab_string_ = mb_mapping->tab_string;
 
     /* reduce mb_mapping capabilities based on the function in the request */
     switch(function) {
@@ -142,6 +160,7 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -153,6 +172,7 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, CHERI_PERM_LOAD);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -164,6 +184,7 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, CHERI_PERM_LOAD);
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -175,6 +196,7 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, CHERI_PERM_LOAD);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -187,6 +209,7 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -199,6 +222,7 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, CHERI_PERM_STORE);
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -211,6 +235,7 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
 
             /* structure pointer shouldn't need to be referenced at all */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, 0);
@@ -223,6 +248,19 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, CHERI_PERM_LOAD | CHERI_PERM_STORE);
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
+
+            /* structure pointer should now only need to load values and capabilities */
+            mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
+            break;
+
+        case MODBUS_FC_WRITE_STRING:
+            /* we only need to be able to read and write the string (tab_string) used for Macaroons */
+            mb_mapping->tab_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_bits, 0);
+            mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
+            mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
+            mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, CHERI_PERM_LOAD | CHERI_PERM_STORE);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -234,12 +272,22 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
 
             /* structure pointer shouldn't need to be referenced at all */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, 0);
     }
 
-    rc = modbus_process_request(ctx, req, req_length, rsp, rsp_length, mb_mapping);
+    /**
+     * If the shim is CHERI_SHIM, then call libmodbus:modbus_process_request() directly;
+     * otherwise, call the composite shim function with CHERI_SHIM_X,
+     * indicating that this function is ready to call libmodbus:modbus_process_request()
+     * */
+    if(shim == CHERI_SHIM) {
+        rc = modbus_process_request(ctx, req, req_length, rsp, rsp_length, mb_mapping);
+    } else {
+        rc = modbus_process_request(ctx, req, req_length, rsp, rsp_length, mb_mapping, CHERI_SHIM_X);
+    }
 
     /* restore permissions of mb_mapping and member capabilities */
     mb_mapping = mb_mapping_;
@@ -247,6 +295,7 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
     mb_mapping->tab_input_bits = tab_input_bits_;
     mb_mapping->tab_input_registers = tab_input_registers_;
     mb_mapping->tab_registers = tab_registers_;
+    mb_mapping->tab_string = tab_string_;
 
     return rc;
 }
