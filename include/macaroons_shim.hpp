@@ -13,10 +13,21 @@ extern "C" {
 /* Macaroons */
 #include "macaroons/macaroons.hpp"
 
+/* shim support */
+#include "shim_types.hpp"
+
+/******************
+ * SERVER FUNCTIONS
+ *****************/
+
 int modbus_receive_macaroons(modbus_t *ctx, uint8_t *req);
 int modbus_process_request_macaroons(modbus_t *ctx, uint8_t *req,
                                      int req_length, uint8_t *rsp, int *rsp_length,
                                      modbus_mapping_t *mb_mapping);
+
+/******************
+ * CLIENT FUNCTIONS
+ *****************/
 
 int modbus_read_bits_macaroons(modbus_t *ctx, int addr, int nb, uint8_t *dest);
 int modbus_read_input_bits_macaroons(modbus_t *ctx, int addr, int nb, uint8_t *dest);

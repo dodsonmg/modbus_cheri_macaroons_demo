@@ -88,7 +88,7 @@ int main(int argc, char*argv[])
 
     modbus_set_debug(ctx, TRUE);
 
-    mb_mapping = modbus_mapping_new_start_address_cap(
+    mb_mapping = modbus_mapping_new_start_address_cheri(
         UT_BITS_ADDRESS, UT_BITS_NB,
         UT_INPUT_BITS_ADDRESS, UT_INPUT_BITS_NB,
         UT_REGISTERS_ADDRESS, UT_REGISTERS_NB_MAX,
@@ -197,7 +197,7 @@ int main(int argc, char*argv[])
             }
         }
 
-        rc = modbus_process_request_cap(ctx, query, rc, rsp, &rsp_length, mb_mapping);
+        rc = modbus_process_request_cheri(ctx, query, rc, rsp, &rsp_length, mb_mapping);
         if (rc == -1) {
             break;
         }

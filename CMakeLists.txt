@@ -23,59 +23,62 @@ find_package(ament_cmake REQUIRED)
 find_package(libmodbus REQUIRED)
 find_package(libmacaroons REQUIRED)
 
-# Build modbus unit tests for client and server
-add_executable(modbus_unit_test_client
-  src/modbus-unit-test-client.cpp)
-target_include_directories(modbus_unit_test_client PRIVATE
-$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-$<INSTALL_INTERFACE:include>)
-ament_target_dependencies(modbus_unit_test_client libmodbus libmacaroons)
+# # Build modbus unit tests for client and server
+# add_executable(modbus_unit_test_client
+#   src/modbus-unit-test-client.cpp)
+# target_include_directories(modbus_unit_test_client PRIVATE
+# $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+# $<INSTALL_INTERFACE:include>)
+# ament_target_dependencies(modbus_unit_test_client libmodbus libmacaroons)
 
-install(TARGETS
-modbus_unit_test_client
-DESTINATION lib/${PROJECT_NAME})
+# install(TARGETS
+# modbus_unit_test_client
+# DESTINATION lib/${PROJECT_NAME})
 
-add_executable(modbus_unit_test_server
-  src/modbus-unit-test-server.cpp
-  src/cheri_shim.cpp)
-target_include_directories(modbus_unit_test_server PRIVATE
-$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-$<INSTALL_INTERFACE:include>)
-ament_target_dependencies(modbus_unit_test_server libmodbus libmacaroons)
+# add_executable(modbus_unit_test_server
+#   src/modbus-unit-test-server.cpp
+#   src/cheri_shim.cpp)
+# target_include_directories(modbus_unit_test_server PRIVATE
+# $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+# $<INSTALL_INTERFACE:include>)
+# ament_target_dependencies(modbus_unit_test_server libmodbus libmacaroons)
 
-install(TARGETS
-modbus_unit_test_server
-DESTINATION lib/${PROJECT_NAME})
+# install(TARGETS
+# modbus_unit_test_server
+# DESTINATION lib/${PROJECT_NAME})
 
-# Build modbus-macaroons tests for client and server
-add_executable(macaroons_test_client
-  src/macaroons-test-client.cpp
-  src/macaroons_shim.cpp)
-target_include_directories(macaroons_test_client PRIVATE
-$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-$<INSTALL_INTERFACE:include>)
-ament_target_dependencies(macaroons_test_client libmodbus libmacaroons)
+# # Build modbus-macaroons tests for client and server
+# add_executable(macaroons_test_client
+#   src/macaroons-test-client.cpp
+#   src/cheri_shim.cpp
+#   src/macaroons_shim.cpp)
+# target_include_directories(macaroons_test_client PRIVATE
+# $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+# $<INSTALL_INTERFACE:include>)
+# ament_target_dependencies(macaroons_test_client libmodbus libmacaroons)
 
-install(TARGETS
-macaroons_test_client
-DESTINATION lib/${PROJECT_NAME})
+# install(TARGETS
+# macaroons_test_client
+# DESTINATION lib/${PROJECT_NAME})
 
-add_executable(macaroons_test_server
-  src/macaroons-test-server.cpp
-  src/cheri_shim.cpp
-  src/macaroons_shim.cpp)
-target_include_directories(macaroons_test_server PRIVATE
-$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-$<INSTALL_INTERFACE:include>)
-ament_target_dependencies(macaroons_test_server libmodbus libmacaroons)
+# add_executable(macaroons_test_server
+#   src/macaroons-test-server.cpp
+#   src/cheri_shim.cpp
+#   src/macaroons_shim.cpp)
+# target_include_directories(macaroons_test_server PRIVATE
+# $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+# $<INSTALL_INTERFACE:include>)
+# ament_target_dependencies(macaroons_test_server libmodbus libmacaroons)
 
-install(TARGETS
-macaroons_test_server
-DESTINATION lib/${PROJECT_NAME})
+# install(TARGETS
+# macaroons_test_server
+# DESTINATION lib/${PROJECT_NAME})
 
 # Build cheri-macaroons tests for client and server
 add_executable(cheri_macaroons_client
   src/cheri_macaroons_client.cpp
+  src/cheri_macaroons_shim.cpp
+  src/cheri_shim.cpp
   src/macaroons_shim.cpp)
 target_include_directories(cheri_macaroons_client PRIVATE
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -88,6 +91,7 @@ DESTINATION lib/${PROJECT_NAME})
 
 add_executable(cheri_macaroons_server
   src/cheri_macaroons_server.cpp
+  src/cheri_macaroons_shim.cpp
   src/cheri_shim.cpp
   src/macaroons_shim.cpp)
 target_include_directories(cheri_macaroons_server PRIVATE
