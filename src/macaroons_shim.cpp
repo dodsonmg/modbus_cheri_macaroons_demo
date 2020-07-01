@@ -16,6 +16,17 @@ static macaroons::Macaroon M;
 static macaroons::Verifier V;
 
 /******************
+ * HELPER FUNCTIONS
+ *****************/
+
+void print_macaroons_shim_info(std::string function)
+{
+    std::cout << display_marker << std::endl;
+    std::cout << "in macaroons_shim" << std::endl;
+    std::cout << ">\tin " << function << "()" << std::endl;
+}
+
+/******************
  * CLIENT FUNCTIONS
  *****************/
 
@@ -37,15 +48,18 @@ send_and_receive_macaroon(modbus_t *ctx, int command_code)
     M = M.add_first_party_caveat(command);
 
     /* serialise the Macaroon and send it to the server */
-    std::cout << "Sending Macaroon." << std::endl;
+    std::cout << ">>\t" <<  "sending Macaroon" << std::endl;
+    std::cout << display_marker << std::endl;
+
     serialised = M.serialize();
     rc = modbus_write_string(ctx, (uint8_t *)serialised.c_str(), (int)serialised.length());
 
+    std::cout << display_marker << std::endl;
     if(rc == (int)serialised.length()) {
-        std::cout << "Macaroon response received." << std::endl;
+        std::cout << ">>\t" <<  "Macaroon response received" << std::endl;
         return true;
     } else {
-        std::cout << "Macaroon response failed." << std::endl;
+        std::cout << ">>\t" << "Macaroon response failed" << std::endl;
         return false;
     }
 }
@@ -62,10 +76,12 @@ modbus_read_bits_macaroons(modbus_t *ctx, int addr, int nb, uint8_t *dest)
 {
     std::string command;
 
-    std::cout << "in " << __FUNCTION__ << "()" << std::endl;
+    print_macaroons_shim_info(std::string(__FUNCTION__));
 
     if(send_and_receive_macaroon(ctx, MODBUS_FC_READ_COILS)) {
-        std::cout << "Calling modbus_read_bits()." << std::endl;
+        std::cout << ">>\t" <<  "calling modbus_read_bits()" << std::endl;
+        std::cout << display_marker << std::endl;
+
         return modbus_read_bits(ctx, addr, nb, dest);
     }
 
@@ -83,10 +99,12 @@ modbus_read_input_bits_macaroons(modbus_t *ctx, int addr, int nb, uint8_t *dest)
 {
     std::string command;
 
-    std::cout << "in " << __FUNCTION__ << "()" << std::endl;
+    print_macaroons_shim_info(std::string(__FUNCTION__));
 
     if(send_and_receive_macaroon(ctx, MODBUS_FC_READ_DISCRETE_INPUTS)) {
-        std::cout << "Calling modbus_read_input_bits()." << std::endl;
+        std::cout << ">>\t" << "calling modbus_read_input_bits()" << std::endl;
+        std::cout << display_marker << std::endl;
+
         return modbus_read_input_bits(ctx, addr, nb, dest);
     }
 
@@ -105,10 +123,12 @@ modbus_read_registers_macaroons(modbus_t *ctx, int addr, int nb, uint16_t *dest)
 {
     std::string command;
 
-    std::cout << "in " << __FUNCTION__ << "()" << std::endl;
+    print_macaroons_shim_info(std::string(__FUNCTION__));
 
     if(send_and_receive_macaroon(ctx, MODBUS_FC_READ_HOLDING_REGISTERS)) {
-        std::cout << "Calling modbus_read_registers()." << std::endl;
+        std::cout << ">>\t" << "calling modbus_read_registers()" << std::endl;
+        std::cout << display_marker << std::endl;
+
         return modbus_read_registers(ctx, addr, nb, dest);
     }
 
@@ -127,10 +147,12 @@ modbus_read_input_registers_macaroons(modbus_t *ctx, int addr, int nb, uint16_t 
 {
     std::string command;
 
-    std::cout << "in " << __FUNCTION__ << "()" << std::endl;
+    print_macaroons_shim_info(std::string(__FUNCTION__));
 
     if(send_and_receive_macaroon(ctx, MODBUS_FC_READ_INPUT_REGISTERS)) {
-        std::cout << "Calling modbus_read_input_registers()." << std::endl;
+        std::cout << ">>\t" << "calling modbus_read_input_registers()" << std::endl;
+        std::cout << display_marker << std::endl;
+
         return modbus_read_input_registers(ctx, addr, nb, dest);
     }
 
@@ -148,10 +170,12 @@ modbus_write_bit_macaroons(modbus_t *ctx, int addr, int status)
 {
     std::string command;
 
-    std::cout << "in " << __FUNCTION__ << "()" << std::endl;
+    print_macaroons_shim_info(std::string(__FUNCTION__));
 
     if(send_and_receive_macaroon(ctx, MODBUS_FC_WRITE_SINGLE_COIL)) {
-        std::cout << "Calling modbus_write_bit()." << std::endl;
+        std::cout << ">>\t" << "calling modbus_write_bit()" << std::endl;
+        std::cout << display_marker << std::endl;
+
         return modbus_write_bit(ctx, addr, status);
     }
 
@@ -169,10 +193,12 @@ modbus_write_register_macaroons(modbus_t *ctx, int addr, const uint16_t value)
 {
     std::string command;
 
-    std::cout << "in " << __FUNCTION__ << "()" << std::endl;
+    print_macaroons_shim_info(std::string(__FUNCTION__));
 
     if(send_and_receive_macaroon(ctx, MODBUS_FC_WRITE_SINGLE_REGISTER)) {
-        std::cout << "Calling modbus_write_register()." << std::endl;
+        std::cout << ">>\t" << "calling modbus_write_register()" << std::endl;
+        std::cout << display_marker << std::endl;
+
         return modbus_write_register(ctx, addr, value);
     }
 
@@ -190,10 +216,12 @@ modbus_write_bits_macaroons(modbus_t *ctx, int addr, int nb, const uint8_t *src)
 {
     std::string command;
 
-    std::cout << "in " << __FUNCTION__ << "()" << std::endl;
+    print_macaroons_shim_info(std::string(__FUNCTION__));
 
     if(send_and_receive_macaroon(ctx, MODBUS_FC_WRITE_MULTIPLE_COILS)) {
-        std::cout << "Calling modbus_write_bits()." << std::endl;
+        std::cout << ">>\t" << "calling modbus_write_bits()" << std::endl;
+        std::cout << display_marker << std::endl;
+
         return modbus_write_bits(ctx, addr, nb, src);
     }
 
@@ -211,10 +239,12 @@ modbus_write_registers_macaroons(modbus_t *ctx, int addr, int nb, const uint16_t
 {
     std::string command;
 
-    std::cout << "in " << __FUNCTION__ << "()" << std::endl;
+    print_macaroons_shim_info(std::string(__FUNCTION__));
 
     if(send_and_receive_macaroon(ctx, MODBUS_FC_WRITE_MULTIPLE_REGISTERS)) {
-        std::cout << "Calling modbus_write_registers()." << std::endl;
+        std::cout << ">>\t" << "calling modbus_write_registers()" << std::endl;
+        std::cout << display_marker << std::endl;
+
         return modbus_write_registers(ctx, addr, nb, data);
     }
 
@@ -234,10 +264,12 @@ modbus_mask_write_register_macaroons(modbus_t *ctx, int addr,
 {
     std::string command;
 
-    std::cout << "in " << __FUNCTION__ << "()" << std::endl;
+    print_macaroons_shim_info(std::string(__FUNCTION__));
 
     if(send_and_receive_macaroon(ctx, MODBUS_FC_MASK_WRITE_REGISTER)) {
-        std::cout << "Calling modbus_mask_write_register()." << std::endl;
+        std::cout << ">>\t" << "calling modbus_mask_write_register()" << std::endl;
+        std::cout << display_marker << std::endl;
+
         return modbus_mask_write_register(ctx, addr, and_mask, or_mask);
     }
 
@@ -259,10 +291,12 @@ modbus_write_and_read_registers_macaroons(modbus_t *ctx, int write_addr,
 {
     std::string command;
 
-    std::cout << "in " << __FUNCTION__ << "()" << std::endl;
+    print_macaroons_shim_info(std::string(__FUNCTION__));
 
     if(send_and_receive_macaroon(ctx, MODBUS_FC_WRITE_AND_READ_REGISTERS)) {
-        std::cout << "Calling modbus_write_and_read_registers()." << std::endl;
+        std::cout << ">>\t" << "calling modbus_write_and_read_registers()" << std::endl;
+        std::cout << display_marker << std::endl;
+
         return modbus_write_and_read_registers(ctx, write_addr, write_nb, src,
                                                read_addr, read_nb, dest);
     }
@@ -283,10 +317,12 @@ modbus_report_slave_id_macaroons(modbus_t *ctx, int max_dest,
 {
     std::string command;
 
-    std::cout << "in " << __FUNCTION__ << "()" << std::endl;
+    print_macaroons_shim_info(std::string(__FUNCTION__));
 
     if(send_and_receive_macaroon(ctx, MODBUS_FC_REPORT_SLAVE_ID)) {
-        std::cout << "Calling modbus_report_slave_id()." << std::endl;
+        std::cout << ">>\t" << "calling modbus_report_slave_id()" << std::endl;
+        std::cout << display_marker << std::endl;
+
         return modbus_report_slave_id(ctx, max_dest, dest);
     }
 
@@ -324,13 +360,13 @@ process_macaroon(uint8_t *tab_string)
 
     if(M.is_initialized()){
         if(V.verify_unsafe(M, key)) {
-            std::cout << "VERIFICATION: Pass" << std::endl;
+            std::cout << ">>\t" << "VERIFICATION: Pass" << std::endl;
             return true;
         } else {
-            std::cout << "VERIFICATION: Fail" << std::endl;
+            std::cout << ">>\t" << "VERIFICATION: Fail" << std::endl;
         }
     } else {
-        std::cout << "MACAROON: Not initialised" << std::endl;
+        std::cout << ">>\t" << "MACAROON: Not initialised" << std::endl;
     }
 
     return false;
@@ -342,15 +378,15 @@ process_macaroon(uint8_t *tab_string)
 void
 modbus_decompose_request_print(int *offset, int *slave_id, int *function, uint16_t *addr, int *nb)
 {
-    std::cout << "offset:\t\t" << *offset << std::endl;
-    std::cout << "slave_id:\t" << *slave_id << std::endl;
+    std::cout << ">>\t" << "offset:\t\t" << *offset << std::endl;
+    std::cout << ">>\t" << "slave_id:\t" << *slave_id << std::endl;
     std::cout << std::showbase // show the 0x prefix
               << std::internal // fill between the prefix and the number
               << std::setfill('0') // fill with 0s
               << std::hex;
-    std::cout << "function:\t" << *function << std::endl;
-    std::cout << "addr:\t\t" << *addr << std::endl;
-    std::cout << "nb:\t\t" << *nb << std::endl;
+    std::cout << ">>\t" << "function:\t" << *function << std::endl;
+    std::cout << ">>\t" << "addr:\t\t" << *addr << std::endl;
+    std::cout << ">>\t" << "nb:\t\t" << *nb << std::endl;
 }
 
 /**
@@ -371,6 +407,12 @@ modbus_process_request_macaroons(modbus_t *ctx, uint8_t *req,
     uint16_t *addr = (uint16_t *)malloc(sizeof(uint16_t));
     int *nb = (int *)malloc(sizeof(int));
 
+    print_macaroons_shim_info(std::string(__FUNCTION__));
+
+    // clear the Macaroon and Verifier
+    M = macaroons::Macaroon();
+    V = macaroons::Verifier();
+
     std::string command;
 
     /* get the function from the request */
@@ -383,48 +425,48 @@ modbus_process_request_macaroons(modbus_t *ctx, uint8_t *req,
      * Upon receipt of the following request, we attempt to verify the Macaroon, and
      * if verification is successful, we process the request and return to the server.
      * */
-    while(*function == MODBUS_FC_WRITE_STRING) {
+    if(*function == MODBUS_FC_WRITE_STRING) {
         // zero out the state variable where the Macaroon string is stored
         memset(mb_mapping->tab_string, 0, MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
+
+        std::cout << display_marker << std::endl;
 
         rc = modbus_process_request(ctx, req, req_length, rsp, rsp_length, mb_mapping);
         if (rc == -1) {
             return rc;
         }
 
-        std::cout << mb_mapping->tab_string << std::endl;
+        // rc = modbus_reply(ctx, rsp, *rsp_length);
+        // if (rc == -1) {
+        //     return rc;
+        // }
 
-        rc = modbus_reply(ctx, rsp, *rsp_length);
-        if (rc == -1) {
-            return rc;
-        }
+        // do {
+        //     rc = modbus_receive(ctx, req);
+        //     /* Filtered queries return 0 */
+        // } while (rc == 0);
 
-        do {
-            rc = modbus_receive(ctx, req);
-            /* Filtered queries return 0 */
-        } while (rc == 0);
-
-        /* get the function from the request */
-        modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb);
-    }
-
-    // add the command in the subsequent request to the temporary Verifier
-    command = std::to_string(1<<*function);
-    V.satisfy_exact(command);
-
-    // Extract the Macaroon.  If verification is successful, process the request.
-    if(process_macaroon(mb_mapping->tab_string)) {
-        std::cout << "Processing request:" << std::endl;
-        modbus_decompose_request_print(offset, slave_id, function, addr, nb);
-        rc = modbus_process_request(ctx, req, rc, rsp, rsp_length, mb_mapping);
+        // /* get the function from the request */
+        // modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb);
     } else {
-        rc = -1;
-    }
+        // add the command in the subsequent request to the temporary Verifier
+        command = std::to_string(1<<*function);
+        V.satisfy_exact(command);
 
-    // clear the Macaroon, Verifier, and tab_string
-    M = macaroons::Macaroon();
-    V = macaroons::Verifier();
-    memset(mb_mapping->tab_string, 0, MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
+        /**
+         * Extract the previously-received Macaroon.
+         * If verification is successful, process the request.
+         * */
+        if(process_macaroon(mb_mapping->tab_string)) {
+            std::cout << ">>\t" << "Processing request:" << std::endl;
+            modbus_decompose_request_print(offset, slave_id, function, addr, nb);
+            std::cout << display_marker << std::endl;
+
+            rc = modbus_process_request(ctx, req, req_length, rsp, rsp_length, mb_mapping);
+        } else {
+            rc = -1;
+        }
+    }
 
     return rc;
 }

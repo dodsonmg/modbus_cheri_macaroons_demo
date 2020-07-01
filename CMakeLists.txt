@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(modbus_macaroons_demo)
+project(modbus_cheri_macaroons_demo)
 
 macro(print_all_variables)
     message(STATUS "print_all_variables------------------------------------------{")
@@ -23,29 +23,28 @@ find_package(ament_cmake REQUIRED)
 find_package(libmodbus REQUIRED)
 find_package(libmacaroons REQUIRED)
 
-# # Build modbus unit tests for client and server
-# add_executable(modbus_unit_test_client
-#   src/modbus-unit-test-client.cpp)
-# target_include_directories(modbus_unit_test_client PRIVATE
-# $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-# $<INSTALL_INTERFACE:include>)
-# ament_target_dependencies(modbus_unit_test_client libmodbus libmacaroons)
+# Build modbus unit tests for client and server
+add_executable(unit_test_client
+  src/unit-test-client.c)
+target_include_directories(unit_test_client PRIVATE
+$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+$<INSTALL_INTERFACE:include>)
+ament_target_dependencies(unit_test_client libmodbus libmacaroons)
 
-# install(TARGETS
-# modbus_unit_test_client
-# DESTINATION lib/${PROJECT_NAME})
+install(TARGETS
+unit_test_client
+DESTINATION lib/${PROJECT_NAME})
 
-# add_executable(modbus_unit_test_server
-#   src/modbus-unit-test-server.cpp
-#   src/cheri_shim.cpp)
-# target_include_directories(modbus_unit_test_server PRIVATE
-# $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-# $<INSTALL_INTERFACE:include>)
-# ament_target_dependencies(modbus_unit_test_server libmodbus libmacaroons)
+add_executable(unit_test_server
+  src/unit-test-server.c)
+target_include_directories(unit_test_server PRIVATE
+$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+$<INSTALL_INTERFACE:include>)
+ament_target_dependencies(unit_test_server libmodbus libmacaroons)
 
-# install(TARGETS
-# modbus_unit_test_server
-# DESTINATION lib/${PROJECT_NAME})
+install(TARGETS
+unit_test_server
+DESTINATION lib/${PROJECT_NAME})
 
 # # Build modbus-macaroons tests for client and server
 # add_executable(macaroons_test_client

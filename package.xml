@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="2">
-  <name>modbus_macaroons_demo</name>
+  <name>modbus_cheri_macaroons_demo</name>
   <version>0.7.4</version>
-  <description>Minimalist demo of modbus with macaroons</description>
+  <description>Minimalist demo of modbus with cheri and macaroons</description>
   <maintainer email="md403@cam.ac.uk">Michael Dodson</maintainer>
   <license>Apache License 2.0</license>
   <author>Michael Dodson</author>

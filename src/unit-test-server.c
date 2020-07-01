@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <modbus/modbus.h>
 #ifdef _WIN32
 # include <winsock2.h>
 #else
@@ -20,20 +21,7 @@
 # define MSG_NOSIGNAL 0
 #endif
 
-extern "C" {
-    #include <modbus/modbus.h>
-    #include "unit-test.h"
-}
-
-/* For CHERI */
-#ifndef __has_feature
-#define __has_feature(x) 0
-#endif
-
-#if __has_feature(capabilities)
-#include "cheri_shim.hpp"
-#endif
-
+#include "unit-test.h"
 
 enum {
     TCP,
@@ -49,10 +37,10 @@ int main(int argc, char*argv[])
     int rc;
     int i;
     int use_backend;
-    uint8_t *query = NULL;
-    uint8_t *rsp = NULL;
-    int rsp_length = 0;
+    uint8_t *query;
     int header_length;
+    uint8_t *rsp;
+    int rsp_length = 0;
 
     if (argc > 1) {
         if (strcmp(argv[1], "tcp") == 0) {
@@ -72,23 +60,23 @@ int main(int argc, char*argv[])
 
     if (use_backend == TCP) {
         ctx = modbus_new_tcp("127.0.0.1", 1502);
-        query = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
-        rsp = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
+        query = malloc(MODBUS_TCP_MAX_ADU_LENGTH * sizeof(uint8_t));
+        rsp = malloc(MODBUS_TCP_MAX_ADU_LENGTH * sizeof(uint8_t));
     } else if (use_backend == TCP_PI) {
         ctx = modbus_new_tcp_pi("::0", "1502");
-        query = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
-        rsp = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
+        query = malloc(MODBUS_TCP_MAX_ADU_LENGTH * sizeof(uint8_t));
+        rsp = malloc(MODBUS_TCP_MAX_ADU_LENGTH * sizeof(uint8_t));
     } else {
         ctx = modbus_new_rtu("/dev/ttyUSB0", 115200, 'N', 8, 1);
         modbus_set_slave(ctx, SERVER_ID);
-        query = (uint8_t *)malloc(MODBUS_RTU_MAX_ADU_LENGTH);
-        rsp = (uint8_t *)malloc(MODBUS_RTU_MAX_ADU_LENGTH);
+        query = malloc(MODBUS_RTU_MAX_ADU_LENGTH * sizeof(uint8_t));
+        rsp = malloc(MODBUS_RTU_MAX_ADU_LENGTH * sizeof(uint8_t));
     }
     header_length = modbus_get_header_length(ctx);
 
     modbus_set_debug(ctx, TRUE);
 
-    mb_mapping = modbus_mapping_new_start_address_cheri(
+    mb_mapping = modbus_mapping_new_start_address(
         UT_BITS_ADDRESS, UT_BITS_NB,
         UT_INPUT_BITS_ADDRESS, UT_INPUT_BITS_NB,
         UT_REGISTERS_ADDRESS, UT_REGISTERS_NB_MAX,
@@ -159,7 +147,7 @@ int main(int argc, char*argv[])
                        == UT_REGISTERS_ADDRESS_INVALID_TID_OR_SLAVE) {
                 const int RAW_REQ_LENGTH = 5;
                 uint8_t raw_req[] = {
-                    static_cast<uint8_t>((use_backend == RTU) ? INVALID_SERVER_ID : 0xFF),
+                    (use_backend == RTU) ? INVALID_SERVER_ID : 0xFF,
                     0x03,
                     0x02, 0x00, 0x00
                 };
@@ -197,7 +185,7 @@ int main(int argc, char*argv[])
             }
         }
 
-        rc = modbus_process_request_cheri(ctx, query, rc, rsp, &rsp_length, mb_mapping);
+        rc = modbus_process_request(ctx, query, rc, rsp, &rsp_length, mb_mapping);
         if (rc == -1) {
             break;
         }

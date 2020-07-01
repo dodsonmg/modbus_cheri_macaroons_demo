@@ -1,5 +1,16 @@
 #include "cheri_shim.hpp"
 
+/******************
+ * HELPER FUNCTIONS
+ *****************/
+
+void print_cheri_shim_info(std::string function)
+{
+    std::cout << display_marker << std::endl;
+    std::cout << "in cheri_shim" << std::endl;
+    std::cout << ">\tin " << function << "()" << std::endl;
+}
+
 /**
  * Small helper to print the name of a requested function
  * */
@@ -82,6 +93,8 @@ modbus_mapping_t* modbus_mapping_new_start_address_cheri(
     unsigned int start_registers, unsigned int nb_registers,
     unsigned int start_input_registers, unsigned int nb_input_registers)
 {
+    print_cheri_shim_info(std::string(__FUNCTION__));
+
     modbus_mapping_t* mb_mapping;
     mb_mapping = modbus_mapping_new_start_address(
         start_bits, nb_bits,
@@ -132,6 +145,8 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
     uint8_t *tab_string_;
     modbus_mapping_t *mb_mapping_;
 
+    print_cheri_shim_info(std::string(__FUNCTION__));
+
     function = modbus_get_function(ctx, req);
     modbus_print_function(function);
 
@@ -160,7 +175,9 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
-            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
+
+            /* we need to read the serialised Macaroon (tab_string) */
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, CHERI_PERM_LOAD);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -172,7 +189,9 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, CHERI_PERM_LOAD);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
-            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
+
+            /* we need to read the serialised Macaroon (tab_string) */
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, CHERI_PERM_LOAD);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -184,7 +203,9 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, CHERI_PERM_LOAD);
-            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
+
+            /* we need to read the serialised Macaroon (tab_string) */
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, CHERI_PERM_LOAD);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -196,7 +217,9 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, CHERI_PERM_LOAD);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
-            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
+
+            /* we need to read the serialised Macaroon (tab_string) */
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, CHERI_PERM_LOAD);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -209,7 +232,9 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
-            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
+
+            /* we need to read the serialised Macaroon (tab_string) */
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, CHERI_PERM_LOAD);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
@@ -222,23 +247,26 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, CHERI_PERM_STORE);
-            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
+
+            /* we need to read the serialised Macaroon (tab_string) */
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, CHERI_PERM_LOAD);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
             break;
 
         case MODBUS_FC_REPORT_SLAVE_ID:
-        case MODBUS_FC_READ_EXCEPTION_STATUS:
             /* we shouldn't need to read or write coils or registers */
             mb_mapping->tab_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_bits, 0);
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
-            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
 
-            /* structure pointer shouldn't need to be referenced at all */
-            mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, 0);
+            /* we need to read the serialised Macaroon (tab_string) */
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, CHERI_PERM_LOAD);
+
+            /* structure pointer should now only need to load values and capabilities */
+            mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
             break;
 
         case MODBUS_FC_MASK_WRITE_REGISTER:
@@ -248,7 +276,9 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
             mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
             mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
             mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, CHERI_PERM_LOAD | CHERI_PERM_STORE);
-            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, 0);
+
+            /* we need to read the serialised Macaroon (tab_string) */
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, CHERI_PERM_LOAD);
 
             /* structure pointer should now only need to load values and capabilities */
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);

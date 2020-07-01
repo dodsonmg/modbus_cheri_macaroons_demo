@@ -49,24 +49,18 @@ int main(int argc, char*argv[])
 
     shim_t shim = CHERI_MACAROONS_SHIM;
 
-    /* to test macaroons */
-    std::string key = "a bad secret";
-    std::string id = "id for a bad secret";
-    std::string location = "https://www.modbus.com/macaroons/";
-    std::string expected_signature = "27c9baef16ae041625139857bfca2cebebdcba4ce6637c59ea2693107cf053ce";
-    std::string serialised;
-    macaroons::Macaroon M;
-    macaroons::Verifier V;
-
+    /* RTU configuration doesn't support Macaroons, so we drop it */
     if (argc > 1) {
         if (strcmp(argv[1], "tcp") == 0) {
             use_backend = TCP;
         } else if (strcmp(argv[1], "tcppi") == 0) {
             use_backend = TCP_PI;
         } else if (strcmp(argv[1], "rtu") == 0) {
-            use_backend = RTU;
+            // use_backend = RTU;
+            printf("RTU configuration is not supported\n");
+            return -1;
         } else {
-            printf("Usage:\n  %s [tcp|tcppi|rtu] - Modbus server for unit testing\n\n", argv[0]);
+            printf("Usage:\n  %s [tcp|tcppi] - Modbus server for unit testing\n\n", argv[0]);
             return -1;
         }
     } else {
@@ -76,17 +70,12 @@ int main(int argc, char*argv[])
 
     if (use_backend == TCP) {
         ctx = modbus_new_tcp("127.0.0.1", 1502);
-        query = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
-        rsp = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
-    } else if (use_backend == TCP_PI) {
-        ctx = modbus_new_tcp_pi("::0", "1502");
-        query = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
-        rsp = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH);
+        query = (uint8_t *)malloc(MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
+        rsp = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH * sizeof(uint8_t));
     } else {
-        ctx = modbus_new_rtu("/dev/ttyUSB0", 115200, 'N', 8, 1);
-        modbus_set_slave(ctx, SERVER_ID);
-        query = (uint8_t *)malloc(MODBUS_RTU_MAX_ADU_LENGTH);
-        rsp = (uint8_t *)malloc(MODBUS_RTU_MAX_ADU_LENGTH);
+        ctx = modbus_new_tcp_pi("::0", "1502");
+        query = (uint8_t *)malloc(MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
+        rsp = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH * sizeof(uint8_t));
     }
     header_length = modbus_get_header_length(ctx);
 
@@ -120,16 +109,9 @@ int main(int argc, char*argv[])
     if (use_backend == TCP) {
         s = modbus_tcp_listen(ctx, 1);
         modbus_tcp_accept(ctx, &s);
-    } else if (use_backend == TCP_PI) {
+    } else {
         s = modbus_tcp_pi_listen(ctx, 1);
         modbus_tcp_pi_accept(ctx, &s);
-    } else {
-        rc = modbus_connect(ctx);
-        if (rc == -1) {
-            fprintf(stderr, "Unable to connect %s\n", modbus_strerror(errno));
-            modbus_free(ctx);
-            return -1;
-        }
     }
 
     for (;;) {
@@ -165,9 +147,6 @@ int main(int argc, char*argv[])
     }
     modbus_mapping_free(mb_mapping);
     free(query);
-    /* For RTU */
-    modbus_close(ctx);
-    modbus_free(ctx);
 
     return 0;
 }

@@ -4,26 +4,19 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <iostream>
-// #include <stdio.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <string.h>
+#include <modbus/modbus.h>
 
-
-extern "C" {
-    #include <modbus/modbus.h>
-    #include "unit-test.h"
-}
-
-/* CHERI Macaroons */
-#include "cheri_macaroons_shim.hpp"
+#include "unit-test.h"
 
 // ignore variadic arguments from the ASSERT_TRUE macro
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#pragma GCC diagnostic ignored "-Wgnu-folding-constant"
 
 const int EXCEPTION_RC = 2;
 
@@ -56,22 +49,12 @@ int equal_dword(uint16_t *tab_reg, const uint32_t value) {
     return ((tab_reg[0] == (value >> 16)) && (tab_reg[1] == (value & 0xFFFF)));
 }
 
-std::string hex_encode(const std::vector<unsigned char> &data)
-{
-    std::stringstream stream;
-    stream.fill('0');
-
-    for (auto c : data)
-        stream << std::hex << std::setw(2) << static_cast<unsigned int>(c);
-
-    return stream.str();
-}
-
 int main(int argc, char *argv[])
 {
     const int NB_REPORT_SLAVE_ID = 10;
     uint8_t *tab_rp_bits = NULL;
     uint16_t *tab_rp_registers = NULL;
+    uint16_t *tab_rp_registers_bad = NULL;
     modbus_t *ctx = NULL;
     int i;
     uint8_t value;
@@ -85,18 +68,8 @@ int main(int argc, char *argv[])
     uint32_t old_byte_to_sec;
     uint32_t old_byte_to_usec;
     int use_backend;
-    int success = false;
+    int success = FALSE;
     int old_slave;
-
-    shim_t shim = CHERI_MACAROONS_SHIM;
-
-    /* to test macaroons */
-    std::string key = "a bad secret";
-    std::string id = "id for a bad secret";
-    std::string location = "https://www.modbus.com/macaroons/";
-    std::string expected_signature = "27c9baef16ae041625139857bfca2cebebdcba4ce6637c59ea2693107cf053ce";
-    std::string serialised;
-    macaroons::Macaroon M{location, key, id};
 
     if (argc > 1) {
         if (strcmp(argv[1], "tcp") == 0) {
@@ -126,7 +99,9 @@ int main(int argc, char *argv[])
         return -1;
     }
     modbus_set_debug(ctx, TRUE);
-    modbus_set_error_recovery(ctx, MODBUS_ERROR_RECOVERY_LINK_AND_PROTOCOL);
+    modbus_set_error_recovery(ctx,
+                              MODBUS_ERROR_RECOVERY_LINK |
+                              MODBUS_ERROR_RECOVERY_PROTOCOL);
 
     if (use_backend == RTU) {
         modbus_set_slave(ctx, SERVER_ID);
@@ -162,13 +137,11 @@ int main(int argc, char *argv[])
     /** COIL BITS **/
 
     /* Single */
-    rc = modbus_write_bit(ctx, UT_BITS_ADDRESS, ON,
-                          shim);
+    rc = modbus_write_bit(ctx, UT_BITS_ADDRESS, ON);
     printf("1/2 modbus_write_bit: ");
     ASSERT_TRUE(rc == 1, "");
 
-    rc = modbus_read_bits(ctx, UT_BITS_ADDRESS, 1, tab_rp_bits,
-                          shim);
+    rc = modbus_read_bits(ctx, UT_BITS_ADDRESS, 1, tab_rp_bits);
     printf("2/2 modbus_read_bits: ");
     ASSERT_TRUE(rc == 1, "FAILED (nb points %d)\n", rc);
     ASSERT_TRUE(tab_rp_bits[0] == ON, "FAILED (%0X != %0X)\n",
@@ -181,14 +154,12 @@ int main(int argc, char *argv[])
         uint8_t tab_value[UT_BITS_NB];
 
         modbus_set_bits_from_bytes(tab_value, 0, UT_BITS_NB, UT_BITS_TAB);
-        rc = modbus_write_bits(ctx, UT_BITS_ADDRESS, UT_BITS_NB, tab_value,
-                               shim);
+        rc = modbus_write_bits(ctx, UT_BITS_ADDRESS, UT_BITS_NB, tab_value);
         printf("1/2 modbus_write_bits: ");
         ASSERT_TRUE(rc == UT_BITS_NB, "");
     }
 
-    rc = modbus_read_bits(ctx, UT_BITS_ADDRESS, UT_BITS_NB, tab_rp_bits,
-                          shim);
+    rc = modbus_read_bits(ctx, UT_BITS_ADDRESS, UT_BITS_NB, tab_rp_bits);
     printf("2/2 modbus_read_bits: ");
     ASSERT_TRUE(rc == UT_BITS_NB, "FAILED (nb points %d)\n", rc);
 
@@ -204,15 +175,12 @@ int main(int argc, char *argv[])
         nb_points -= nb_bits;
         i++;
     }
-    printf("OK!\n");
+    printf("OK\n");
     /* End of multiple bits */
-
-    goto end_test;
 
     /** DISCRETE INPUTS **/
     rc = modbus_read_input_bits(ctx, UT_INPUT_BITS_ADDRESS,
-                                UT_INPUT_BITS_NB, tab_rp_bits,
-                                shim);
+                                UT_INPUT_BITS_NB, tab_rp_bits);
     printf("1/1 modbus_read_input_bits: ");
     ASSERT_TRUE(rc == UT_INPUT_BITS_NB, "FAILED (nb points %d)\n", rc);
 
@@ -232,15 +200,12 @@ int main(int argc, char *argv[])
     /** HOLDING REGISTERS **/
 
     /* Single register */
-    rc = modbus_write_register(ctx, UT_REGISTERS_ADDRESS,
-                               0x1234,
-                               shim);
+    rc = modbus_write_register(ctx, UT_REGISTERS_ADDRESS, 0x1234);
     printf("1/2 modbus_write_register: ");
     ASSERT_TRUE(rc == 1, "");
 
     rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS,
-                               1, tab_rp_registers,
-                               shim);
+                               1, tab_rp_registers);
     printf("2/2 modbus_read_registers: ");
     ASSERT_TRUE(rc == 1, "FAILED (nb points %d)\n", rc);
     ASSERT_TRUE(tab_rp_registers[0] == 0x1234, "FAILED (%0X != %0X)\n",
@@ -248,16 +213,14 @@ int main(int argc, char *argv[])
     /* End of single register */
 
     /* Many registers */
-    rc = modbus_write_registers(ctx, UT_REGISTERS_ADDRESS,UT_REGISTERS_NB,
-                                UT_REGISTERS_TAB,
-                                shim);
-    printf("1/4 modbus_write_registers: ");
+    rc = modbus_write_registers(ctx, UT_REGISTERS_ADDRESS,
+                                UT_REGISTERS_NB, UT_REGISTERS_TAB);
+    printf("1/5 modbus_write_registers: ");
     ASSERT_TRUE(rc == UT_REGISTERS_NB, "");
 
-    rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS, UT_REGISTERS_NB,
-                               tab_rp_registers,
-                               shim);
-    printf("2/4 modbus_read_registers: ");
+    rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS,
+                               UT_REGISTERS_NB, tab_rp_registers);
+    printf("2/5 modbus_read_registers: ");
     ASSERT_TRUE(rc == UT_REGISTERS_NB, "FAILED (nb points %d)\n", rc);
 
     for (i=0; i < UT_REGISTERS_NB; i++) {
@@ -267,9 +230,8 @@ int main(int argc, char *argv[])
     }
 
     rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS,
-                               0, tab_rp_registers,
-                               shim);
-    printf("3/4 modbus_read_registers (0): ");
+                               0, tab_rp_registers);
+    printf("3/5 modbus_read_registers (0): ");
     ASSERT_TRUE(rc == -1, "FAILED (nb_points %d)\n", rc);
 
     nb_points = (UT_REGISTERS_NB >
@@ -286,9 +248,8 @@ int main(int argc, char *argv[])
                                          tab_rp_registers,
                                          UT_REGISTERS_ADDRESS,
                                          UT_REGISTERS_NB,
-                                         tab_rp_registers,
-                                         shim);
-    printf("4/4 modbus_write_and_read_registers: ");
+                                         tab_rp_registers);
+    printf("4/5 modbus_write_and_read_registers: ");
     ASSERT_TRUE(rc == UT_REGISTERS_NB, "FAILED (nb points %d != %d)\n",
                 rc, UT_REGISTERS_NB);
 
@@ -301,14 +262,13 @@ int main(int argc, char *argv[])
                     tab_rp_registers[i], 0);
     }
 
-    // /* End of many registers */
+    /* End of many registers */
 
 
     /** INPUT REGISTERS **/
     rc = modbus_read_input_registers(ctx, UT_INPUT_REGISTERS_ADDRESS,
                                      UT_INPUT_REGISTERS_NB,
-                                     tab_rp_registers,
-                                     shim);
+                                     tab_rp_registers);
     printf("1/1 modbus_read_input_registers: ");
     ASSERT_TRUE(rc == UT_INPUT_REGISTERS_NB, "FAILED (nb points %d)\n", rc);
 
@@ -320,13 +280,10 @@ int main(int argc, char *argv[])
 
     /* MASKS */
     printf("1/1 Write mask: ");
-    rc = modbus_write_register(ctx, UT_REGISTERS_ADDRESS, 0x12,
-                               shim);
-    rc = modbus_mask_write_register(ctx, UT_REGISTERS_ADDRESS, 0xF2, 0x25,
-                                    shim);
+    rc = modbus_write_register(ctx, UT_REGISTERS_ADDRESS, 0x12);
+    rc = modbus_mask_write_register(ctx, UT_REGISTERS_ADDRESS, 0xF2, 0x25);
     ASSERT_TRUE(rc != -1, "FAILED (%x == -1)\n", rc);
-    rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS, 1, tab_rp_registers,
-                               shim);
+    rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS, 1, tab_rp_registers);
     ASSERT_TRUE(tab_rp_registers[0] == 0x17,
                 "FAILED (%0X != %0X)\n",
                 tab_rp_registers[0], 0x17);
@@ -365,106 +322,87 @@ int main(int argc, char *argv[])
     /* The mapping begins at the defined addresses and ends at address +
      * nb_points so these addresses are not valid. */
 
-    rc = modbus_read_bits(ctx, 0, 1, tab_rp_bits,
-                          shim);
+    rc = modbus_read_bits(ctx, 0, 1, tab_rp_bits);
     printf("* modbus_read_bits (0): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
-    rc = modbus_read_bits(ctx, UT_BITS_ADDRESS, UT_BITS_NB + 1, tab_rp_bits,
-                          shim);
+    rc = modbus_read_bits(ctx, UT_BITS_ADDRESS, UT_BITS_NB + 1, tab_rp_bits);
     printf("* modbus_read_bits (max): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
-    rc = modbus_read_input_bits(ctx, 0, 1, tab_rp_bits,
-                                shim);
+    rc = modbus_read_input_bits(ctx, 0, 1, tab_rp_bits);
     printf("* modbus_read_input_bits (0): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
     rc = modbus_read_input_bits(ctx, UT_INPUT_BITS_ADDRESS,
-                                UT_INPUT_BITS_NB + 1, tab_rp_bits,
-                                shim);
+                                UT_INPUT_BITS_NB + 1, tab_rp_bits);
     printf("* modbus_read_input_bits (max): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
-    rc = modbus_read_registers(ctx, 0, 1, tab_rp_registers,
-                               shim);
+    rc = modbus_read_registers(ctx, 0, 1, tab_rp_registers);
     printf("* modbus_read_registers (0): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
     rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS,
-                               UT_REGISTERS_NB_MAX + 1, tab_rp_registers,
-                               shim);
+                               UT_REGISTERS_NB_MAX + 1, tab_rp_registers);
     printf("* modbus_read_registers (max): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
-    rc = modbus_read_input_registers(ctx, 0, 1, tab_rp_registers,
-                                     shim);
+    rc = modbus_read_input_registers(ctx, 0, 1, tab_rp_registers);
     printf("* modbus_read_input_registers (0): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
     rc = modbus_read_input_registers(ctx, UT_INPUT_REGISTERS_ADDRESS,
                                      UT_INPUT_REGISTERS_NB + 1,
-                                     tab_rp_registers,
-                                     shim);
+                                     tab_rp_registers);
     printf("* modbus_read_input_registers (max): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
-    rc = modbus_write_bit(ctx, 0, ON,
-                          shim);
+    rc = modbus_write_bit(ctx, 0, ON);
     printf("* modbus_write_bit (0): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
-    rc = modbus_write_bit(ctx, UT_BITS_ADDRESS + UT_BITS_NB, ON,
-                          shim);
+    rc = modbus_write_bit(ctx, UT_BITS_ADDRESS + UT_BITS_NB, ON);
     printf("* modbus_write_bit (max): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
-    rc = modbus_write_bits(ctx, 0, 1, tab_rp_bits,
-                          shim);
+    rc = modbus_write_bits(ctx, 0, 1, tab_rp_bits);
     printf("* modbus_write_coils (0): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
     rc = modbus_write_bits(ctx, UT_BITS_ADDRESS + UT_BITS_NB,
-                           UT_BITS_NB, tab_rp_bits,
-                           shim);
+                           UT_BITS_NB, tab_rp_bits);
     printf("* modbus_write_coils (max): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
-    rc = modbus_write_register(ctx, 0, tab_rp_registers[0],
-                               shim);
+    rc = modbus_write_register(ctx, 0, tab_rp_registers[0]);
     printf("* modbus_write_register (0): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
     rc = modbus_write_register(ctx, UT_REGISTERS_ADDRESS + UT_REGISTERS_NB_MAX,
-                               tab_rp_registers[0],
-                               shim);
+                                tab_rp_registers[0]);
     printf("* modbus_write_register (max): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
-    rc = modbus_write_registers(ctx, 0, 1, tab_rp_registers,
-                                shim);
+    rc = modbus_write_registers(ctx, 0, 1, tab_rp_registers);
     printf("* modbus_write_registers (0): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
     rc = modbus_write_registers(ctx, UT_REGISTERS_ADDRESS + UT_REGISTERS_NB_MAX,
-                                UT_REGISTERS_NB, tab_rp_registers,
-                                shim);
+                                UT_REGISTERS_NB, tab_rp_registers);
     printf("* modbus_write_registers (max): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
-    rc = modbus_mask_write_register(ctx, 0, 0xF2, 0x25,
-                                    shim);
+    rc = modbus_mask_write_register(ctx, 0, 0xF2, 0x25);
     printf("* modbus_mask_write_registers (0): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
     rc = modbus_mask_write_register(ctx, UT_REGISTERS_ADDRESS + UT_REGISTERS_NB_MAX,
-                                    0xF2, 0x25,
-                                    shim);
+                                    0xF2, 0x25);
     printf("* modbus_mask_write_registers (max): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
-    rc = modbus_write_and_read_registers(ctx, 0, 1, tab_rp_registers, 0, 1, tab_rp_registers,
-                                         shim);
+    rc = modbus_write_and_read_registers(ctx, 0, 1, tab_rp_registers, 0, 1, tab_rp_registers);
     printf("* modbus_write_and_read_registers (0): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
@@ -472,8 +410,7 @@ int main(int argc, char *argv[])
                                          UT_REGISTERS_ADDRESS + UT_REGISTERS_NB_MAX,
                                          UT_REGISTERS_NB, tab_rp_registers,
                                          UT_REGISTERS_ADDRESS + UT_REGISTERS_NB_MAX,
-                                         UT_REGISTERS_NB, tab_rp_registers,
-                                         shim);
+                                         UT_REGISTERS_NB, tab_rp_registers);
     printf("* modbus_write_and_read_registers (max): ");
     ASSERT_TRUE(rc == -1 && errno == EMBXILADD, "");
 
@@ -481,41 +418,35 @@ int main(int argc, char *argv[])
     printf("\nTEST TOO MANY DATA ERROR:\n");
 
     rc = modbus_read_bits(ctx, UT_BITS_ADDRESS,
-                          MODBUS_MAX_READ_BITS + 1, tab_rp_bits,
-                          shim);
+                          MODBUS_MAX_READ_BITS + 1, tab_rp_bits);
     printf("* modbus_read_bits: ");
     ASSERT_TRUE(rc == -1 && errno == EMBMDATA, "");
 
     rc = modbus_read_input_bits(ctx, UT_INPUT_BITS_ADDRESS,
-                                MODBUS_MAX_READ_BITS + 1, tab_rp_bits,
-                                shim);
+                                MODBUS_MAX_READ_BITS + 1, tab_rp_bits);
     printf("* modbus_read_input_bits: ");
     ASSERT_TRUE(rc == -1 && errno == EMBMDATA, "");
 
     rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS,
                                MODBUS_MAX_READ_REGISTERS + 1,
-                               tab_rp_registers,
-                               shim);
+                               tab_rp_registers);
     printf("* modbus_read_registers: ");
     ASSERT_TRUE(rc == -1 && errno == EMBMDATA, "");
 
     rc = modbus_read_input_registers(ctx, UT_INPUT_REGISTERS_ADDRESS,
                                      MODBUS_MAX_READ_REGISTERS + 1,
-                                     tab_rp_registers,
-                                     shim);
+                                     tab_rp_registers);
     printf("* modbus_read_input_registers: ");
     ASSERT_TRUE(rc == -1 && errno == EMBMDATA, "");
 
     rc = modbus_write_bits(ctx, UT_BITS_ADDRESS,
-                           MODBUS_MAX_WRITE_BITS + 1, tab_rp_bits,
-                           shim);
+                           MODBUS_MAX_WRITE_BITS + 1, tab_rp_bits);
     printf("* modbus_write_bits: ");
     ASSERT_TRUE(rc == -1 && errno == EMBMDATA, "");
 
     rc = modbus_write_registers(ctx, UT_REGISTERS_ADDRESS,
                                 MODBUS_MAX_WRITE_REGISTERS + 1,
-                                tab_rp_registers,
-                                shim);
+                                tab_rp_registers);
     printf("* modbus_write_registers: ");
     ASSERT_TRUE(rc == -1 && errno == EMBMDATA, "");
 
@@ -525,8 +456,7 @@ int main(int argc, char *argv[])
     printf("\nTEST SLAVE REPLY:\n");
     modbus_set_slave(ctx, INVALID_SERVER_ID);
     rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS,
-                               UT_REGISTERS_NB, tab_rp_registers,
-                               shim);
+                               UT_REGISTERS_NB, tab_rp_registers);
     if (use_backend == RTU) {
         const int RAW_REQ_LENGTH = 6;
         uint8_t raw_req[] = { INVALID_SERVER_ID, 0x03, 0x00, 0x01, 0x01, 0x01 };
@@ -580,8 +510,7 @@ int main(int argc, char *argv[])
         ASSERT_TRUE(rc != -1, "Invalid broacast address");
 
         rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS,
-                                   UT_REGISTERS_NB, tab_rp_registers,
-                                   shim);
+                                   UT_REGISTERS_NB, tab_rp_registers);
         printf("2/3 Reply after a query with unit id == 0: ");
         ASSERT_TRUE(rc == UT_REGISTERS_NB, "");
     }
@@ -589,18 +518,15 @@ int main(int argc, char *argv[])
     /* Restore slave */
     modbus_set_slave(ctx, old_slave);
 
-    /* this is failing and i don't know why */
-    // rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS_INVALID_TID_OR_SLAVE,
-    //                            1, tab_rp_registers,
-    //                            shim);
-    // printf("3/3 Response with an invalid TID or slave: ");
-    // ASSERT_TRUE(rc == -1, "");
+    printf("3/3 Response with an invalid TID or slave: ");
+    rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS_INVALID_TID_OR_SLAVE,
+                               1, tab_rp_registers);
+    ASSERT_TRUE(rc == -1, "");
 
     printf("1/2 Report slave ID truncated: \n");
     /* Set a marker to ensure limit is respected */
     tab_rp_bits[NB_REPORT_SLAVE_ID - 1] = 42;
-    rc = modbus_report_slave_id(ctx, NB_REPORT_SLAVE_ID - 1, tab_rp_bits,
-                                shim);
+    rc = modbus_report_slave_id(ctx, NB_REPORT_SLAVE_ID - 1, tab_rp_bits);
     /* Return the size required (response size) but respects the defined limit */
     ASSERT_TRUE(rc == NB_REPORT_SLAVE_ID &&
                 tab_rp_bits[NB_REPORT_SLAVE_ID - 1] == 42,
@@ -609,8 +535,7 @@ int main(int argc, char *argv[])
 
     printf("2/2 Report slave ID: \n");
     /* tab_rp_bits is used to store bytes */
-    rc = modbus_report_slave_id(ctx, NB_REPORT_SLAVE_ID, tab_rp_bits,
-                                shim);
+    rc = modbus_report_slave_id(ctx, NB_REPORT_SLAVE_ID, tab_rp_bits);
     ASSERT_TRUE(rc == NB_REPORT_SLAVE_ID, "");
 
     /* Slave ID is an arbitraty number for libmodbus */
@@ -646,8 +571,7 @@ int main(int argc, char *argv[])
 
     modbus_set_response_timeout(ctx, 0, 1);
     rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS,
-                               UT_REGISTERS_NB, tab_rp_registers,
-                               shim);
+                               UT_REGISTERS_NB, tab_rp_registers);
     printf("4/6 1us response timeout: ");
     if (rc == -1 && errno == ETIMEDOUT) {
         printf("OK\n");
@@ -662,18 +586,13 @@ int main(int argc, char *argv[])
     usleep(old_response_to_sec * 1000000 + old_response_to_usec);
     modbus_flush(ctx);
 
-    /**
-     * These timing tests seem to break on QEMU
-     * Ignoring this one
-     * */
     /* Trigger a special behaviour on server to wait for 0.5 second before
      * replying whereas allowed timeout is 0.2 second */
-    // modbus_set_response_timeout(ctx, 0, 200000);
-    // rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS_SLEEP_500_MS,
-    //                            1, tab_rp_registers,
-    //                            shim);
-    // printf("5/6 Too short response timeout (0.2s < 0.5s): ");
-    // ASSERT_TRUE(rc == -1 && errno == ETIMEDOUT, "");
+    modbus_set_response_timeout(ctx, 0, 200000);
+    rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS_SLEEP_500_MS,
+                               1, tab_rp_registers);
+    printf("5/6 Too short response timeout (0.2s < 0.5s): ");
+    ASSERT_TRUE(rc == -1 && errno == ETIMEDOUT, "");
 
     /* Wait for reply (0.2 + 0.4 > 0.5 s) and flush before continue */
     usleep(400000);
@@ -681,8 +600,7 @@ int main(int argc, char *argv[])
 
     modbus_set_response_timeout(ctx, 0, 600000);
     rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS_SLEEP_500_MS,
-                               1, tab_rp_registers,
-                               shim);
+                               1, tab_rp_registers);
     printf("6/6 Adequate response timeout (0.6s > 0.5s): ");
     ASSERT_TRUE(rc == 1, "");
 
@@ -690,8 +608,7 @@ int main(int argc, char *argv[])
        The full response must be available in the 600ms interval */
     modbus_set_byte_timeout(ctx, 0, 0);
     rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS_SLEEP_500_MS,
-                               1, tab_rp_registers,
-                               shim);
+                               1, tab_rp_registers);
     printf("7/7 Disable byte timeout: ");
     ASSERT_TRUE(rc == 1, "");
 
@@ -703,31 +620,22 @@ int main(int argc, char *argv[])
         /* The test server is only able to test byte timeouts with the TCP
          * backend */
 
-        /**
-         * These timing tests seem to break on QEMU
-         * Ignoring this one...
-         * */
         /* Timeout of 3ms between bytes */
-        // modbus_set_byte_timeout(ctx, 0, 3000);
-        // rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS_BYTE_SLEEP_5_MS,
-        //                            1, tab_rp_registers,
-        //                            shim);
-        // printf("1/2 Too small byte timeout (3ms < 5ms): ");
-        // ASSERT_TRUE(rc == -1 && errno == ETIMEDOUT, "");
+        modbus_set_byte_timeout(ctx, 0, 3000);
+        rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS_BYTE_SLEEP_5_MS,
+                                   1, tab_rp_registers);
+        printf("1/2 Too small byte timeout (3ms < 5ms): ");
+        ASSERT_TRUE(rc == -1 && errno == ETIMEDOUT, "");
 
         /* Wait remaing bytes before flushing */
         usleep(11 * 5000);
         modbus_flush(ctx);
 
-        /**
-         * These timing tests seem to break on QEMU
-         * Modifying this one from 7ms -> 70ms
-         * */
         /* Timeout of 7ms between bytes */
+        /* This seems to create problems on QEMU.  Setting timeout to 70ms instead */
         modbus_set_byte_timeout(ctx, 0, 70000);
         rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS_BYTE_SLEEP_5_MS,
-                                   1, tab_rp_registers,
-                                   shim);
+                                   1, tab_rp_registers);
         printf("2/2 Adapted byte timeout (70ms > 5ms): ");
         ASSERT_TRUE(rc == 1, "");
     }
@@ -735,45 +643,32 @@ int main(int argc, char *argv[])
     /* Restore original byte timeout */
     modbus_set_byte_timeout(ctx, old_byte_to_sec, old_byte_to_usec);
 
-    // /** BAD RESPONSE **/
-    // printf("\nTEST BAD RESPONSE ERROR:\n");
-
-    // /**
-    //  * All these tests with special addresses fail because we don't
-    //  * give the server a chance to initiate the special testing segment
-    //  * since we bypass it in the shim
-    //  * */
+    /** BAD RESPONSE **/
+    printf("\nTEST BAD RESPONSE ERROR:\n");
 
     /* Allocate only the required space */
-    // tab_rp_registers_bad = (uint16_t *) malloc(
-    //     UT_REGISTERS_NB_SPECIAL * sizeof(uint16_t));
+    tab_rp_registers_bad = (uint16_t *) malloc(
+        UT_REGISTERS_NB_SPECIAL * sizeof(uint16_t));
 
-    // rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS,
-    //                            UT_REGISTERS_NB_SPECIAL, tab_rp_registers_bad,
-    //                            shim);
-    // printf("* modbus_read_registers: ");
-    // ASSERT_TRUE(rc == -1 && errno == EMBBADDATA, "");
-    // free(tab_rp_registers_bad);
+    rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS,
+                               UT_REGISTERS_NB_SPECIAL, tab_rp_registers_bad);
+    printf("* modbus_read_registers: ");
+    ASSERT_TRUE(rc == -1 && errno == EMBBADDATA, "");
+    free(tab_rp_registers_bad);
 
     /** MANUAL EXCEPTION **/
-    // printf("\nTEST MANUAL EXCEPTION:\n");
-    // rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS_SPECIAL,
-    //                            UT_REGISTERS_NB, tab_rp_registers,
-    //                            shim);
+    printf("\nTEST MANUAL EXCEPTION:\n");
+    rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS_SPECIAL,
+                               UT_REGISTERS_NB, tab_rp_registers);
 
-    // printf("* modbus_read_registers at special address: ");
-    // ASSERT_TRUE(rc == -1 && errno == EMBXSBUSY, "");
+    printf("* modbus_read_registers at special address: ");
+    ASSERT_TRUE(rc == -1 && errno == EMBXSBUSY, "");
 
-    /**
-     * Skip these server tests until we can use the shim to
-     * handle raw requests
-     * */
     /** Run a few tests to challenge the server code **/
-    // if (test_server(ctx, use_backend) == -1) {
-    //     goto close;
-    // }
+    if (test_server(ctx, use_backend) == -1) {
+        goto close;
+    }
 
-end_test:
     modbus_close(ctx);
     modbus_free(ctx);
     ctx = NULL;
@@ -812,7 +707,7 @@ int test_server(modbus_t *ctx, int use_backend)
     int i;
     /* Read requests */
     const int READ_RAW_REQ_LEN = 6;
-    const uint8_t slave = static_cast<uint8_t>((use_backend == RTU) ? SERVER_ID : MODBUS_TCP_SLAVE);
+    const int slave = (use_backend == RTU) ? SERVER_ID : MODBUS_TCP_SLAVE;
     uint8_t read_raw_req[] = {
         slave,
         /* function, address, 5 values */
