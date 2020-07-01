@@ -1,7 +1,18 @@
-#ifndef _CHERI_MACAROONS_MODBUS_SHIM_
-#define _CHERI_MACAROONS_MODBUS_SHIM_
+#ifndef _CHERI_MACAROONS_SHIM_
+#define _CHERI_MACAROONS_SHIM_
 
-#include "macaroons_modbus_shim.hpp"
+/* For CHERI */
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+
+#if !__has_feature(capabilities)
+#error "<cheri_macaroons_shim.h> should only be included when CHERI is supported"
+#endif
+
+#include "macaroons/macaroons.hpp"
+#include "macaroons_shim.hpp"
+#include "cheri_shim.hpp"
 
 typedef enum {
     CHERI_SHIM,
@@ -163,4 +174,4 @@ int modbus_process_request(modbus_t *ctx, uint8_t *req,
     return -1;
 }
 
-#endif /* _CHERI_MACAROONS_MODBUS_SHIM_ */
+#endif /* _CHERI_MACAROONS_SHIM_ */

@@ -5,6 +5,7 @@
  */
 
 #include <iostream>
+// #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -17,7 +18,7 @@ extern "C" {
     #include "unit-test.h"
 }
 
-/* macaroons */
+/* CHERI Macaroons */
 #include "cheri_macaroons_shim.hpp"
 
 // ignore variadic arguments from the ASSERT_TRUE macro

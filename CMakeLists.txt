@@ -37,7 +37,7 @@ DESTINATION lib/${PROJECT_NAME})
 
 add_executable(modbus_unit_test_server
   src/modbus-unit-test-server.cpp
-  src/cheri_modbus_shim.c)
+  src/cheri_shim.cpp)
 target_include_directories(modbus_unit_test_server PRIVATE
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
@@ -50,7 +50,7 @@ DESTINATION lib/${PROJECT_NAME})
 # Build modbus-macaroons tests for client and server
 add_executable(macaroons_test_client
   src/macaroons-test-client.cpp
-  src/macaroons_modbus_shim.cpp)
+  src/macaroons_shim.cpp)
 target_include_directories(macaroons_test_client PRIVATE
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
@@ -62,8 +62,8 @@ DESTINATION lib/${PROJECT_NAME})
 
 add_executable(macaroons_test_server
   src/macaroons-test-server.cpp
-  src/cheri_modbus_shim.c
-  src/macaroons_modbus_shim.cpp)
+  src/cheri_shim.cpp
+  src/macaroons_shim.cpp)
 target_include_directories(macaroons_test_server PRIVATE
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
@@ -71,6 +71,32 @@ ament_target_dependencies(macaroons_test_server libmodbus libmacaroons)
 
 install(TARGETS
 macaroons_test_server
+DESTINATION lib/${PROJECT_NAME})
+
+# Build cheri-macaroons tests for client and server
+add_executable(cheri_macaroons_client
+  src/cheri_macaroons_client.cpp
+  src/macaroons_shim.cpp)
+target_include_directories(cheri_macaroons_client PRIVATE
+$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+$<INSTALL_INTERFACE:include>)
+ament_target_dependencies(cheri_macaroons_client libmodbus libmacaroons)
+
+install(TARGETS
+cheri_macaroons_client
+DESTINATION lib/${PROJECT_NAME})
+
+add_executable(cheri_macaroons_server
+  src/cheri_macaroons_server.cpp
+  src/cheri_shim.cpp
+  src/macaroons_shim.cpp)
+target_include_directories(cheri_macaroons_server PRIVATE
+$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+$<INSTALL_INTERFACE:include>)
+ament_target_dependencies(cheri_macaroons_server libmodbus libmacaroons)
+
+install(TARGETS
+cheri_macaroons_server
 DESTINATION lib/${PROJECT_NAME})
 
 print_all_variables()

@@ -1,5 +1,7 @@
-#ifndef _CHERI_MODBUS_SHIM_
-#define _CHERI_MODBUS_SHIM_
+#ifndef _CHERI_SHIM_
+#define _CHERI_SHIM_
+
+#include <iostream>
 
 /* For CHERI */
 #ifndef __has_feature
@@ -7,16 +9,16 @@
 #endif
 
 #if !__has_feature(capabilities)
-#error "<cheri_modbus_shim.h> should only be included when CHERI is supported"
+#error "<cheri_shim.h> should only be included when CHERI is supported"
 #endif
 
-#include <stdio.h>
+#include "cheri_helper.h"
 
 /* for modbus */
-#include <modbus/modbus.h>
+extern "C" {
+    #include <modbus/modbus.h>
+}
 
-/* for cheri */
-#include "cheri_helper.h"
 
 modbus_mapping_t* modbus_mapping_new_start_address_cap(
     unsigned int start_bits, unsigned int nb_bits,
@@ -28,4 +30,4 @@ int modbus_process_request_cap(modbus_t *ctx, const uint8_t *req,
                                int req_length, uint8_t *rsp, int *rsp_length,
                                modbus_mapping_t *mb_mapping);
 
-#endif /* _CHERI_MODBUS_SHIM_ */
+#endif /* _CHERI_SHIM_ */

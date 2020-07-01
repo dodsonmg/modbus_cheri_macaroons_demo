@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <stdio.h>
+#include <iostream>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -25,15 +25,8 @@ extern "C" {
     #include "unit-test.h"
 }
 
-/* For CHERI */
-#ifndef __has_feature
-#define __has_feature(x) 0
-#endif
-
-#if __has_feature(capabilities)
-#include "cheri_shim.hpp"
-#endif
-
+/* CHERI Macaroons */
+#include "cheri_macaroons_shim.hpp"
 
 enum {
     TCP,
@@ -53,6 +46,15 @@ int main(int argc, char*argv[])
     uint8_t *rsp = NULL;
     int rsp_length = 0;
     int header_length;
+
+    /* to test macaroons */
+    std::string key = "a bad secret";
+    std::string id = "id for a bad secret";
+    std::string location = "https://www.modbus.com/macaroons/";
+    std::string expected_signature = "27c9baef16ae041625139857bfca2cebebdcba4ce6637c59ea2693107cf053ce";
+    std::string serialised;
+    macaroons::Macaroon M;
+    macaroons::Verifier V;
 
     if (argc > 1) {
         if (strcmp(argv[1], "tcp") == 0) {
@@ -88,7 +90,8 @@ int main(int argc, char*argv[])
 
     modbus_set_debug(ctx, TRUE);
 
-    mb_mapping = modbus_mapping_new_start_address_cap(
+    // mb_mapping = modbus_mapping_new_start_address_cap(
+    mb_mapping = modbus_mapping_new_start_address(
         UT_BITS_ADDRESS, UT_BITS_NB,
         UT_INPUT_BITS_ADDRESS, UT_INPUT_BITS_NB,
         UT_REGISTERS_ADDRESS, UT_REGISTERS_NB_MAX,
@@ -197,7 +200,7 @@ int main(int argc, char*argv[])
             }
         }
 
-        rc = modbus_process_request_cap(ctx, query, rc, rsp, &rsp_length, mb_mapping);
+        rc = modbus_process_request(ctx, query, rc, rsp, &rsp_length, mb_mapping, MACAROONS_SHIM);
         if (rc == -1) {
             break;
         }

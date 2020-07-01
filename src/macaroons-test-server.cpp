@@ -5,7 +5,6 @@
  */
 
 #include <iostream>
-// #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -26,20 +25,7 @@ extern "C" {
     #include "unit-test.h"
 }
 
-#include "macaroons/macaroons.hpp"
-#include "cheri_macaroons_modbus_shim.hpp"
-
-/* For CHERI */
-#ifndef __has_feature
-#define __has_feature(x) 0
-#endif
-
-#if __has_feature(capabilities)
-extern "C" {
-    #include "cheri_modbus_shim.h"
-}
-#endif
-
+#include "cheri_macaroons_shim.hpp"
 
 enum {
     TCP,

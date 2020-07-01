@@ -1,14 +1,16 @@
-#ifndef _MACAROONS_MODBUS_SHIM_
-#define _MACAROONS_MODBUS_SHIM_
+#ifndef _MACAROONS_SHIM_
+#define _MACAROONS_SHIM_
 
-#include <random>
 #include <iostream>
+#include <random>
 #include <cassert>
 
-/* for modbus */
-#include <modbus/modbus.h>
+/* for Modbus */
+extern "C" {
+    #include <modbus/modbus.h>
+}
 
-/* macaroons */
+/* Macaroons */
 #include "macaroons/macaroons.hpp"
 
 int modbus_receive_macaroons(modbus_t *ctx, uint8_t *req);
@@ -31,4 +33,4 @@ int modbus_write_and_read_registers_macaroons(modbus_t *ctx, int write_addr, int
                                                uint16_t *dest);
 int modbus_report_slave_id_macaroons(modbus_t *ctx, int max_dest, uint8_t *dest);
 
-#endif /* _MACAROONS_MODBUS_SHIM_ */
+#endif /* _MACAROONS_SHIM_ */
