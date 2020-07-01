@@ -47,6 +47,8 @@ int main(int argc, char*argv[])
     int rsp_length = 0;
     int header_length;
 
+    shim_t shim = CHERI_MACAROONS_SHIM;
+
     /* to test macaroons */
     std::string key = "a bad secret";
     std::string id = "id for a bad secret";
@@ -95,7 +97,7 @@ int main(int argc, char*argv[])
         UT_INPUT_BITS_ADDRESS, UT_INPUT_BITS_NB,
         UT_REGISTERS_ADDRESS, UT_REGISTERS_NB_MAX,
         UT_INPUT_REGISTERS_ADDRESS, UT_INPUT_REGISTERS_NB,
-        CHERI_SHIM);
+        shim);
     if (mb_mapping == NULL) {
         fprintf(stderr, "Failed to allocate the mapping: %s\n",
                 modbus_strerror(errno));
@@ -143,7 +145,7 @@ int main(int argc, char*argv[])
             break;
         }
 
-        rc = modbus_process_request(ctx, query, rc, rsp, &rsp_length, mb_mapping, CHERI_SHIM);
+        rc = modbus_process_request(ctx, query, rc, rsp, &rsp_length, mb_mapping, shim);
         if (rc == -1) {
             break;
         }
