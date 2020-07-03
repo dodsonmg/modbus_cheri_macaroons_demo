@@ -21,7 +21,6 @@ extern "C" {
 
 /* shim support */
 #include "cheri_macaroons_shim.hpp"
-#include "shim_types.hpp"
 
 /**
  *  Allocates 5 arrays to store bits, input bits, registers, inputs
@@ -39,6 +38,7 @@ modbus_mapping_t* modbus_mapping_new_start_address_cheri(
 
 int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
                                 int req_length, uint8_t *rsp, int *rsp_length,
-                                modbus_mapping_t *mb_mapping, shim_t shim);
+                                modbus_mapping_t *mb_mapping,
+                                shim_t shim_type, shim_s shim_state);
 
 #endif /* _CHERI_SHIM_ */

@@ -14,7 +14,7 @@ extern "C" {
 #include "macaroons/macaroons.hpp"
 
 /* shim support */
-#include "shim_types.hpp"
+#include "cheri_macaroons_shim.hpp"
 
 /******************
  * SERVER FUNCTIONS
@@ -23,7 +23,8 @@ extern "C" {
 int modbus_receive_macaroons(modbus_t *ctx, uint8_t *req);
 int modbus_process_request_macaroons(modbus_t *ctx, uint8_t *req,
                                      int req_length, uint8_t *rsp, int *rsp_length,
-                                     modbus_mapping_t *mb_mapping);
+                                     modbus_mapping_t *mb_mapping,
+                                     shim_t shim_type, shim_s shim_state);
 
 /******************
  * CLIENT FUNCTIONS

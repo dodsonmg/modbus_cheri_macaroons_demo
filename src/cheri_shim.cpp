@@ -4,74 +4,6 @@
  * HELPER FUNCTIONS
  *****************/
 
-void print_cheri_shim_info(std::string function)
-{
-    std::cout << display_marker << std::endl;
-    std::cout << "in cheri_shim" << std::endl;
-    std::cout << ">\tin " << function << "()" << std::endl;
-}
-
-/**
- * Small helper to print the name of a requested function
- * */
-void modbus_print_function(int function)
-{
-    switch(function) {
-        case MODBUS_FC_READ_COILS:
-            printf("MODBUS_FC_READ_COILS\n");
-            break;
-        case MODBUS_FC_READ_DISCRETE_INPUTS:
-            printf("MODBUS_FC_READ_DISCRETE_INPUTS\n");
-            break;
-        case MODBUS_FC_READ_HOLDING_REGISTERS:
-            printf("MODBUS_FC_READ_HOLDING_REGISTERS\n");
-            break;
-        case MODBUS_FC_READ_INPUT_REGISTERS:
-            printf("MODBUS_FC_READ_INPUT_REGISTERS\n");
-            break;
-        case MODBUS_FC_WRITE_SINGLE_COIL:
-            printf("MODBUS_FC_WRITE_SINGLE_COIL\n");
-            break;
-        case MODBUS_FC_WRITE_SINGLE_REGISTER:
-            printf("MODBUS_FC_WRITE_SINGLE_REGISTER\n");
-            break;
-        case MODBUS_FC_WRITE_MULTIPLE_COILS:
-            printf("MODBUS_FC_WRITE_MULTIPLE_COILS\n");
-            break;
-        case MODBUS_FC_WRITE_MULTIPLE_REGISTERS:
-            printf("MODBUS_FC_WRITE_MULTIPLE_REGISTERS\n");
-            break;
-        case MODBUS_FC_REPORT_SLAVE_ID:
-            printf("MODBUS_FC_REPORT_SLAVE_ID\n");
-            break;
-        case MODBUS_FC_READ_EXCEPTION_STATUS:
-            printf("MODBUS_FC_READ_EXCEPTION_STATUS\n");
-            break;
-        case MODBUS_FC_MASK_WRITE_REGISTER:
-            printf("MODBUS_FC_MASK_WRITE_REGISTER\n");
-            break;
-        case MODBUS_FC_WRITE_AND_READ_REGISTERS:
-            printf("MODBUS_FC_WRITE_AND_READ_REGISTERS\n");
-            break;
-        case MODBUS_FC_WRITE_STRING:
-            printf("MODBUS_FC_WRITE_STRING\n");
-            break;
-        default:
-            printf("ILLEGAL FUNCTION\n");
-    }
-}
-
-void
-print_mb_mapping(modbus_mapping_t* mb_mapping)
-{
-    printf("mb_mapping:\t\t\t\t%#p\n", (void *)mb_mapping);
-    printf("mb_mapping->tab_bits:\t\t\t%#p\n", (void *)mb_mapping->tab_bits);
-    printf("mb_mapping->tab_input_bits:\t\t%#p\n", (void *)mb_mapping->tab_input_bits);
-    printf("mb_mapping->tab_input_registers:\t%#p\n", (void *)mb_mapping->tab_input_registers);
-    printf("mb_mapping->tab_registers:\t\t%#p\n", (void *)mb_mapping->tab_registers);
-    printf("mb_mapping->tab_string:\t\t\t%#p\n", (void *)mb_mapping->tab_string);
-}
-
 /**
  * Shim function for libmodbus:modbus_mapping_new_start_address
  *
@@ -93,7 +25,7 @@ modbus_mapping_t* modbus_mapping_new_start_address_cheri(
     unsigned int start_registers, unsigned int nb_registers,
     unsigned int start_input_registers, unsigned int nb_input_registers)
 {
-    print_cheri_shim_info(std::string(__FUNCTION__));
+    print_shim_info("cheri_shim", std::string(__FUNCTION__));
 
     modbus_mapping_t* mb_mapping;
     mb_mapping = modbus_mapping_new_start_address(
@@ -121,23 +53,23 @@ modbus_mapping_t* modbus_mapping_new_start_address_cheri(
 
     print_mb_mapping(mb_mapping);
 
+    std::cout << display_marker << std::endl;
+
     return mb_mapping;
 }
 
 /**
- * Shim function for libmodbus:modbus_reply
+ * Shim function for libmodbus:modbus_process_request
  *
- * modbus_reply processes a client request, modifies the server
+ * modbus_process_request processes a client request, modifies the server
  * state (if applicable) and sends a response to the client
- *
- * This shim [DOES WHAT?]
  * */
 int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
                                 int req_length, uint8_t *rsp, int *rsp_length,
-                                modbus_mapping_t *mb_mapping, shim_t shim)
+                                modbus_mapping_t *mb_mapping,
+                                shim_t shim_type, shim_s shim_state)
 {
     int rc;
-    int function;
     uint8_t *tab_bits_;
     uint8_t *tab_input_bits_;
     uint16_t *tab_input_registers_;
@@ -145,10 +77,15 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
     uint8_t *tab_string_;
     modbus_mapping_t *mb_mapping_;
 
-    print_cheri_shim_info(std::string(__FUNCTION__));
+    int *offset = (int *)malloc(sizeof(int));
+    int *slave_id = (int *)malloc(sizeof(int));
+    int *function = (int *)malloc(sizeof(int));
+    uint16_t *addr = (uint16_t *)malloc(sizeof(uint16_t));
+    int *nb = (int *)malloc(sizeof(int));
 
-    function = modbus_get_function(ctx, req);
-    modbus_print_function(function);
+    print_shim_info("cheri_shim", std::string(__FUNCTION__));
+
+    modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb);
 
     /**
      * Create copies of pointers to mb_mapping and members for restoration
@@ -168,7 +105,7 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
     tab_string_ = mb_mapping->tab_string;
 
     /* reduce mb_mapping capabilities based on the function in the request */
-    switch(function) {
+    switch(*function) {
         case MODBUS_FC_READ_COILS:
             /* we only need to be able to read coil (tab_bits) values */
             mb_mapping->tab_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_bits, CHERI_PERM_LOAD);
@@ -309,15 +246,19 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
     }
 
     /**
-     * If the shim is CHERI_SHIM, then call libmodbus:modbus_process_request() directly;
-     * otherwise, call the composite shim function with CHERI_SHIM_X,
-     * indicating that this function is ready to call libmodbus:modbus_process_request()
+     * Print the decomposed request and the resulting mb_mapping pointers
      * */
-    if(shim == CHERI_SHIM) {
-        rc = modbus_process_request(ctx, req, req_length, rsp, rsp_length, mb_mapping);
-    } else {
-        rc = modbus_process_request(ctx, req, req_length, rsp, rsp_length, mb_mapping, CHERI_SHIM_X);
-    }
+    print_modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb);
+    std::cout << std::endl;
+    print_mb_mapping(mb_mapping);
+
+    /**
+     * Set state to CHERI_X (completed work within cheri_shim)
+     * Return to cheri_macaroons_shim to call libmodbus:modbus_process_request()
+     * */
+    shim_state = CHERI_X;
+    rc = modbus_process_request(ctx, req, req_length, rsp, rsp_length, mb_mapping,
+                                shim_type, shim_state);
 
     /* restore permissions of mb_mapping and member capabilities */
     mb_mapping = mb_mapping_;

@@ -34,49 +34,43 @@ enum {
     RTU
 };
 
-int main(int argc, char*argv[])
+int main(int argc, char *argv[])
 {
     int s = -1;
     modbus_t *ctx;
     modbus_mapping_t *mb_mapping;
     int rc;
     int i;
-    int use_backend;
     uint8_t *query = NULL;
     uint8_t *rsp = NULL;
     int rsp_length = 0;
     int header_length;
 
-    shim_t shim = CHERI_MACAROONS_SHIM;
+    shim_t shim_type;
+    shim_s shim_state;
 
-    /* RTU configuration doesn't support Macaroons, so we drop it */
+    /* identify the shim type.  default = CHERI_MACAROONS. */
     if (argc > 1) {
-        if (strcmp(argv[1], "tcp") == 0) {
-            use_backend = TCP;
-        } else if (strcmp(argv[1], "tcppi") == 0) {
-            use_backend = TCP_PI;
-        } else if (strcmp(argv[1], "rtu") == 0) {
-            // use_backend = RTU;
-            printf("RTU configuration is not supported\n");
-            return -1;
+        if (strcmp(argv[1], "NONE") == 0) {
+            shim_type = NONE;
+        } else if (strcmp(argv[1], "CHERI") == 0) {
+            shim_type = CHERI;
+        } else if (strcmp(argv[1], "MACAROONS") == 0) {
+            shim_type = MACAROONS;
+        } else if (strcmp(argv[1], "CHERI_MACAROONS") == 0) {
+            shim_type = CHERI_MACAROONS;
         } else {
-            printf("Usage:\n  %s [tcp|tcppi] - Modbus server for unit testing\n\n", argv[0]);
+            std::cout << "usage: cheri_macaroons_server [NONE|CHERI|MACAROONS|CHERI_MACAROONS]" << std::endl;
             return -1;
         }
     } else {
-        /* By default */
-        use_backend = TCP;
+        shim_type = CHERI_MACAROONS;
     }
 
-    if (use_backend == TCP) {
-        ctx = modbus_new_tcp("127.0.0.1", 1502);
-        query = (uint8_t *)malloc(MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
-        rsp = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH * sizeof(uint8_t));
-    } else {
-        ctx = modbus_new_tcp_pi("::0", "1502");
-        query = (uint8_t *)malloc(MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
-        rsp = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH * sizeof(uint8_t));
-    }
+    ctx = modbus_new_tcp("127.0.0.1", 1502);
+    query = (uint8_t *)malloc(MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
+    rsp = (uint8_t *)malloc(MODBUS_TCP_MAX_ADU_LENGTH * sizeof(uint8_t));
+
     header_length = modbus_get_header_length(ctx);
 
     modbus_set_debug(ctx, TRUE);
@@ -86,7 +80,7 @@ int main(int argc, char*argv[])
         UT_INPUT_BITS_ADDRESS, UT_INPUT_BITS_NB,
         UT_REGISTERS_ADDRESS, UT_REGISTERS_NB_MAX,
         UT_INPUT_REGISTERS_ADDRESS, UT_INPUT_REGISTERS_NB,
-        shim);
+        shim_type);
     if (mb_mapping == NULL) {
         fprintf(stderr, "Failed to allocate the mapping: %s\n",
                 modbus_strerror(errno));
@@ -106,13 +100,8 @@ int main(int argc, char*argv[])
         mb_mapping->tab_input_registers[i] = UT_INPUT_REGISTERS_TAB[i];;
     }
 
-    if (use_backend == TCP) {
-        s = modbus_tcp_listen(ctx, 1);
-        modbus_tcp_accept(ctx, &s);
-    } else {
-        s = modbus_tcp_pi_listen(ctx, 1);
-        modbus_tcp_pi_accept(ctx, &s);
-    }
+    s = modbus_tcp_listen(ctx, 1);
+    modbus_tcp_accept(ctx, &s);
 
     for (;;) {
         do {
@@ -127,7 +116,9 @@ int main(int argc, char*argv[])
             break;
         }
 
-        rc = modbus_process_request(ctx, query, rc, rsp, &rsp_length, mb_mapping, shim);
+        shim_state = INIT;
+        rc = modbus_process_request(ctx, query, rc, rsp, &rsp_length, mb_mapping,
+                                    shim_type, shim_state);
         if (rc == -1) {
             break;
         }
@@ -140,11 +131,10 @@ int main(int argc, char*argv[])
 
     printf("Quit the loop: %s\n", modbus_strerror(errno));
 
-    if (use_backend == TCP) {
-        if (s != -1) {
-            close(s);
-        }
+    if (s != -1) {
+        close(s);
     }
+
     modbus_mapping_free(mb_mapping);
     free(query);
 
