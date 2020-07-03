@@ -82,10 +82,12 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
     int *function = (int *)malloc(sizeof(int));
     uint16_t *addr = (uint16_t *)malloc(sizeof(uint16_t));
     int *nb = (int *)malloc(sizeof(int));
+    uint16_t *addr_wr = (uint16_t *)malloc(sizeof(uint16_t));
+    int *nb_wr = (int *)malloc(sizeof(int));
 
     print_shim_info("cheri_shim", std::string(__FUNCTION__));
 
-    modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb);
+    modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb, addr_wr, nb_wr);
 
     /**
      * Create copies of pointers to mb_mapping and members for restoration
@@ -248,7 +250,7 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
     /**
      * Print the decomposed request and the resulting mb_mapping pointers
      * */
-    print_modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb);
+    print_modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb, addr_wr, nb_wr);
     std::cout << std::endl;
     print_mb_mapping(mb_mapping);
 

@@ -12,8 +12,10 @@ static std::string location = "https://www.modbus.com/macaroons/";
 static std::string expected_signature =
     "27c9baef16ae041625139857bfca2cebebdcba4ce6637c59ea2693107cf053ce";
 
-static std::string default_caveat = "READ-ONLY";
-static std::vector<int> default_caveats = {MODBUS_FC_READ_COILS, MODBUS_FC_WRITE_SINGLE_COIL, MODBUS_FC_WRITE_MULTIPLE_COILS};
+static int16_t default_address_min_caveat = 0x0000;
+static int16_t default_address_max_caveat = 0xFFFF;
+static std::string default_function_caveat = "READ-ONLY";
+static std::vector<int> default_function_caveats = {MODBUS_FC_READ_COILS, MODBUS_FC_WRITE_SINGLE_COIL, MODBUS_FC_WRITE_MULTIPLE_COILS};
 static macaroons::Macaroon client_macaroon;
 
 /******************
@@ -27,6 +29,11 @@ static macaroons::Macaroon client_macaroon;
  * 2. Input: Single int function code
  * 3. Input: Vector of ints of multiple function codes
  * */
+std::string
+create_function_caveat_common(int fc) {
+    return "function = " + std::to_string(fc);
+}
+
 std::string
 create_function_caveat(std::string function_code) {
     uint32_t fc = 0;
@@ -49,12 +56,12 @@ create_function_caveat(std::string function_code) {
         return "";
     }
 
-    return std::to_string(fc);
+    return create_function_caveat_common(fc);
 }
 
 std::string
 create_function_caveat(int function_code) {
-    return std::to_string(1<<function_code);
+    return create_function_caveat_common(1<<function_code);
 }
 
 std::string
@@ -63,7 +70,7 @@ create_function_caveat(std::vector<int> function_codes) {
     for (int code : function_codes) {
         fc |= 1<<code;
     }
-    return std::to_string(fc);
+    return create_function_caveat_common(fc);
 }
 
 /**
@@ -74,8 +81,11 @@ bool
 check_function_caveats(std::vector<std::string> first_party_caveats)
 {
     uint32_t fc = 0xFFFFFFFF;
+    std::string function_token = "function = ";
     for(std::string caveat : first_party_caveats) {
-        fc &= std::stoi(caveat);
+        if(caveat.find(function_token) == 0) {
+            fc &= std::stoi(caveat.substr(function_token.size()));
+        }
     }
 
     if(fc) {
@@ -85,12 +95,109 @@ check_function_caveats(std::vector<std::string> first_party_caveats)
     }
 }
 
+/**
+ * Create an address caveat
+ *
+ * address = 0xABCDEFGH
+ * ABCD is the min address
+ * EFGH is the max address
+ * */
+std::string
+create_address_caveat(uint16_t min, uint16_t max)
+{
+    uint32_t ac;
+    ac = (min<<16) + max;
+    return "address = " + std::to_string(ac);
+}
+
+/**
+ * Verifies that the addresses in the request are not excluded by
+ * address caveats
+ * */
+bool
+check_address_caveats(std::vector<std::string> first_party_caveats, std::string address_request)
+{
+    std::string address_token = "address = ";
+
+    /* convert address request to an int */
+    uint32_t ar = std::stoi(address_request.substr(address_token.size()));
+    uint16_t ar_min = (0xFFFF0000 & ar)>>16;
+    uint16_t ar_max = 0x0000FFFF & ar;
+
+    uint32_t ac;
+    uint16_t ac_min;
+    uint16_t ac_max;
+
+    /**
+     * iterate through all address caveats, extract min and max
+     *
+     * if the requested address min and max are outside the bounds
+     * of any caveat, return false.  otherwise return true.
+     * */
+    for(std::string caveat : first_party_caveats) {
+        if(caveat.find(address_token) == 0) {
+            ac = std::stoi(caveat.substr(address_token.size()));
+            ac_min = (0xFFFF0000 & ac)>>16;
+            ac_max = 0x0000FFFF & ac;
+
+            if(ar_min < ac_min || ar_max > ac_max) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Based on function, address, and number, calculate
+ * the maximum address expected to be accessed.
+ *
+ * For bitwise operations (e.g., read_bits), round up
+ * to the nearest byte
+ * */
+uint16_t
+find_max_address(int function, uint16_t addr, int nb)
+{
+    uint16_t addr_max;
+
+    switch(function) {
+        case MODBUS_FC_READ_COILS:
+        case MODBUS_FC_WRITE_MULTIPLE_COILS:
+        case MODBUS_FC_READ_DISCRETE_INPUTS:
+            addr_max = addr + (nb / 8) + ((nb % 8) ? 1 : 0);
+            break;
+        case MODBUS_FC_READ_HOLDING_REGISTERS:
+        case MODBUS_FC_READ_INPUT_REGISTERS:
+        case MODBUS_FC_WRITE_MULTIPLE_REGISTERS:
+        case MODBUS_FC_WRITE_AND_READ_REGISTERS:
+            addr_max = addr + (nb * 2);
+            break;
+        case MODBUS_FC_WRITE_SINGLE_COIL:
+        case MODBUS_FC_REPORT_SLAVE_ID:
+        case MODBUS_FC_READ_EXCEPTION_STATUS:
+            addr_max = addr;
+            break;
+        case MODBUS_FC_WRITE_SINGLE_REGISTER:
+        case MODBUS_FC_MASK_WRITE_REGISTER:
+            addr_max = addr + 2;
+            break;
+        case MODBUS_FC_WRITE_STRING:
+            addr_max = addr + nb;
+            break;
+        default:
+            addr_max = addr;
+    }
+
+    return addr_max;
+}
+
 /******************
  * CLIENT FUNCTIONS
  *****************/
 
 bool
-send_macaroon(modbus_t *ctx, int function_code)
+send_macaroon(modbus_t *ctx, int function, uint16_t addr, int nb)
 {
     int rc;
     macaroons::Macaroon temp_macaroon;
@@ -102,11 +209,19 @@ send_macaroon(modbus_t *ctx, int function_code)
      * */
     if(!client_macaroon.is_initialized()) {
         client_macaroon = macaroons::Macaroon(location, key, id);
-        client_macaroon = client_macaroon.add_first_party_caveat(create_function_caveat(default_caveats));
+        /* some default initialisation caveats for testing */
+        // client_macaroon = client_macaroon.add_first_party_caveat(
+        //     create_function_caveat(default_function_caveats));
+        // client_macaroon = client_macaroon.add_first_party_caveat(
+        //     create_address_caveat(default_address_min_caveat, default_address_max_caveat));
     }
 
     /* add the function as a caveat to a temporary Macaroon*/
-    temp_macaroon = client_macaroon.add_first_party_caveat(create_function_caveat(function_code));
+    temp_macaroon = client_macaroon.add_first_party_caveat(create_function_caveat(function));
+
+    /* add the address range as a caveat to a temporary Macaroon*/
+    uint16_t addr_max = find_max_address(function, addr, nb);
+    temp_macaroon = temp_macaroon.add_first_party_caveat(create_address_caveat(addr, addr_max));
 
     /* serialise the Macaroon and send it to the server */
     std::cout << "> " <<  "sending Macaroon" << std::endl;
@@ -140,7 +255,7 @@ modbus_read_bits_macaroons(modbus_t *ctx, int addr, int nb, uint8_t *dest)
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
-    if(send_macaroon(ctx, MODBUS_FC_READ_COILS)) {
+    if(send_macaroon(ctx, MODBUS_FC_READ_COILS, addr, nb)) {
         std::cout << "> " <<  "calling modbus_read_bits()" << std::endl;
         std::cout << display_marker << std::endl;
 
@@ -163,7 +278,7 @@ modbus_read_input_bits_macaroons(modbus_t *ctx, int addr, int nb, uint8_t *dest)
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
-    if(send_macaroon(ctx, MODBUS_FC_READ_DISCRETE_INPUTS)) {
+    if(send_macaroon(ctx, MODBUS_FC_READ_DISCRETE_INPUTS, addr, nb)) {
         std::cout << "> " << "calling modbus_read_input_bits()" << std::endl;
         std::cout << display_marker << std::endl;
 
@@ -187,7 +302,7 @@ modbus_read_registers_macaroons(modbus_t *ctx, int addr, int nb, uint16_t *dest)
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
-    if(send_macaroon(ctx, MODBUS_FC_READ_HOLDING_REGISTERS)) {
+    if(send_macaroon(ctx, MODBUS_FC_READ_HOLDING_REGISTERS, addr, nb)) {
         std::cout << "> " << "calling modbus_read_registers()" << std::endl;
         std::cout << display_marker << std::endl;
 
@@ -211,7 +326,7 @@ modbus_read_input_registers_macaroons(modbus_t *ctx, int addr, int nb, uint16_t 
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
-    if(send_macaroon(ctx, MODBUS_FC_READ_INPUT_REGISTERS)) {
+    if(send_macaroon(ctx, MODBUS_FC_READ_INPUT_REGISTERS, addr, nb)) {
         std::cout << "> " << "calling modbus_read_input_registers()" << std::endl;
         std::cout << display_marker << std::endl;
 
@@ -234,7 +349,7 @@ modbus_write_bit_macaroons(modbus_t *ctx, int addr, int status)
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
-    if(send_macaroon(ctx, MODBUS_FC_WRITE_SINGLE_COIL)) {
+    if(send_macaroon(ctx, MODBUS_FC_WRITE_SINGLE_COIL, addr, 0)) {
         std::cout << "> " << "calling modbus_write_bit()" << std::endl;
         std::cout << display_marker << std::endl;
 
@@ -257,7 +372,7 @@ modbus_write_register_macaroons(modbus_t *ctx, int addr, const uint16_t value)
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
-    if(send_macaroon(ctx, MODBUS_FC_WRITE_SINGLE_REGISTER)) {
+    if(send_macaroon(ctx, MODBUS_FC_WRITE_SINGLE_REGISTER, addr, 0)) {
         std::cout << "> " << "calling modbus_write_register()" << std::endl;
         std::cout << display_marker << std::endl;
 
@@ -280,7 +395,7 @@ modbus_write_bits_macaroons(modbus_t *ctx, int addr, int nb, const uint8_t *src)
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
-    if(send_macaroon(ctx, MODBUS_FC_WRITE_MULTIPLE_COILS)) {
+    if(send_macaroon(ctx, MODBUS_FC_WRITE_MULTIPLE_COILS, addr, nb)) {
         std::cout << "> " << "calling modbus_write_bits()" << std::endl;
         std::cout << display_marker << std::endl;
 
@@ -303,7 +418,7 @@ modbus_write_registers_macaroons(modbus_t *ctx, int addr, int nb, const uint16_t
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
-    if(send_macaroon(ctx, MODBUS_FC_WRITE_MULTIPLE_REGISTERS)) {
+    if(send_macaroon(ctx, MODBUS_FC_WRITE_MULTIPLE_REGISTERS, addr, nb)) {
         std::cout << "> " << "calling modbus_write_registers()" << std::endl;
         std::cout << display_marker << std::endl;
 
@@ -328,7 +443,7 @@ modbus_mask_write_register_macaroons(modbus_t *ctx, int addr,
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
-    if(send_macaroon(ctx, MODBUS_FC_MASK_WRITE_REGISTER)) {
+    if(send_macaroon(ctx, MODBUS_FC_MASK_WRITE_REGISTER, addr, 0)) {
         std::cout << "> " << "calling modbus_mask_write_register()" << std::endl;
         std::cout << display_marker << std::endl;
 
@@ -355,7 +470,17 @@ modbus_write_and_read_registers_macaroons(modbus_t *ctx, int write_addr,
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
-    if(send_macaroon(ctx, MODBUS_FC_WRITE_AND_READ_REGISTERS)) {
+    /**
+     * send_macaroon() will create an address range caveat
+     * we need to find the entire range that this function is trying to access
+     * since there's no way to have disjoint caveats
+     * */
+    uint16_t write_addr_max = find_max_address(MODBUS_FC_WRITE_AND_READ_REGISTERS, write_addr, write_nb);
+    uint16_t read_addr_max = find_max_address(MODBUS_FC_WRITE_AND_READ_REGISTERS, read_addr, read_nb);
+    uint16_t addr = (write_addr < read_addr) ? write_addr : read_addr;
+    int nb = ((write_addr < read_addr) ? (read_addr_max - write_addr) : (write_addr_max - read_addr)) / 2;
+
+    if(send_macaroon(ctx, MODBUS_FC_WRITE_AND_READ_REGISTERS, addr, nb)) {
         std::cout << "> " << "calling modbus_write_and_read_registers()" << std::endl;
         std::cout << display_marker << std::endl;
 
@@ -381,7 +506,7 @@ modbus_report_slave_id_macaroons(modbus_t *ctx, int max_dest,
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
-    if(send_macaroon(ctx, MODBUS_FC_REPORT_SLAVE_ID)) {
+    if(send_macaroon(ctx, MODBUS_FC_REPORT_SLAVE_ID, 0, 0)) {
         std::cout << "> " << "calling modbus_report_slave_id()" << std::endl;
         std::cout << display_marker << std::endl;
 
@@ -406,37 +531,24 @@ modbus_receive_macaroons(modbus_t *ctx, uint8_t *req)
  * Process an incoming Macaroon:
  * 1. Deserialise a string
  * 2. Check if it's a valid Macaroon
- * 3. Perofrm verification on the Macaroon
+ * 3. Perform verification on the Macaroon
+ *
+ * TODO:  Figure out how to handle write_and_read_registers
  * */
 bool
-process_macaroon(uint8_t *tab_string, int *function)
+process_macaroon(uint8_t *tab_string, int function, uint16_t addr, int nb)
 {
     std::string serialised = std::string((char *)tab_string);
-    std::string fc = create_function_caveat(*function);
+
+    std::string fc = create_function_caveat(function);
     bool function_as_caveat = false;
+
+    uint16_t ar_max = find_max_address(function, addr, nb);
+    std::string ar = create_address_caveat(addr, ar_max);
+    bool address_as_caveat = false;
 
     macaroons::Macaroon M;
     macaroons::Verifier V;
-
-    /**
-     * check to see if the current function code is allowed based
-     * on the provided Macaroon caveat
-     *
-     * provided as a general satisfier for Macaroon verification
-     * */
-    // auto check_function = [fc](const std::string &caveat) {
-
-    //     std::cout << "check_function:" << std::endl;
-    //     std::cout << "> fc:\t\t" << fc << std::endl;
-    //     std::cout << "> caveat:\t" << caveat << std::endl;
-
-    //     if(std::stoi(fc) & std::stoi(caveat)) {
-    //         std::cout << "> PASS" << std::endl;
-    //     } else {
-    //         std::cout << "> FAIL" << std::endl;
-    //     }
-    //     return (std::stoi(fc) & std::stoi(caveat));
-    // };
 
     // try to deserialise the string into a Macaroon
     try {
@@ -446,39 +558,49 @@ process_macaroon(uint8_t *tab_string, int *function)
     }
 
     if(M.is_initialized()){
-        /* add a general caveat to the verifier to check the function code is allowed */
-        // V.satisfy_general(std::move(check_function));
-
         /**
          * - Confirm the fpcs aren't mutually exclusive (e.g., READ-ONLY and WRITE-ONLY)
+         * - Confirm requested addresses are not out of range (based on caveats)
          * - Add all first party caveats to the verifier
-         * - Confirm that the command is one of the first party caveats
+         * - Confirm that the requested function is one of the first party caveats
+         * - Confirm that the requested address range is one of the first party caveats
          * - Verify the Macaroon
          * */
         // extract all fpcs
         std::vector<std::string> first_party_caveats = M.first_party_caveats();
-        // perform mutual exclusion check
+        // functions: perform mutual exclusion check
         if(check_function_caveats(first_party_caveats)) {
-            for(std::string first_party_caveat : first_party_caveats) {
-                // add fpcs to verifier
-                V.satisfy_exact(first_party_caveat);
-                // check if the requested function is a caveat
-                std::cout << first_party_caveat << " " << fc << std::endl;
-                if(first_party_caveat == fc) {
-                    function_as_caveat = true;
+            // addresses: perform range check
+            if(check_address_caveats(first_party_caveats, ar)) {
+                for(std::string first_party_caveat : first_party_caveats) {
+                    // add fpcs to verifier
+                    V.satisfy_exact(first_party_caveat);
+                    // check if the requested function is a caveat
+                    if(first_party_caveat == fc) {
+                        function_as_caveat = true;
+                    } else if(first_party_caveat == ar) {
+                        address_as_caveat = true;
+                    }
                 }
-            }
-            // confirm the requested function is a caveat
-            if(function_as_caveat) {
-                // perform verification
-                if(V.verify_unsafe(M, key)) {
-                    std::cout << "> " << "Macaroon verification: PASS" << std::endl;
-                    return true;
+                // confirm the requested function is a caveat
+                if(function_as_caveat) {
+                    // confirm the requested addresses is a caveat
+                    if(address_as_caveat) {
+                        // perform verification
+                        if(V.verify_unsafe(M, key)) {
+                            std::cout << "> " << "Macaroon verification: PASS" << std::endl;
+                            return true;
+                        } else {
+                            std::cout << "> " << "Macaroon verification: FAIL" << std::endl;
+                        }
+                    } else {
+                        std::cout << "> " << "Address range not protected as a Macaroon caveat" << std::endl;
+                    }
                 } else {
-                    std::cout << "> " << "Macaroon verification: FAIL" << std::endl;
+                    std::cout << "> " << "Function not protected as a Macaroon caveat" << std::endl;
                 }
             } else {
-                std::cout << "> " << "Function not protected as a Macaroon caveat" << std::endl;
+                std::cout << "> " << "Requested addresses are out of range" << std::endl;
             }
         } else {
             std::cout << "> " << "Function caveats are mutually exclusive" << std::endl;
@@ -509,11 +631,13 @@ modbus_process_request_macaroons(modbus_t *ctx, uint8_t *req,
     int *function = (int *)malloc(sizeof(int));
     uint16_t *addr = (uint16_t *)malloc(sizeof(uint16_t));
     int *nb = (int *)malloc(sizeof(int));
+    uint16_t *addr_wr = (uint16_t *)malloc(sizeof(uint16_t));  // only for write_and_read_registers
+    int *nb_wr = (int *)malloc(sizeof(int));    // only for write_and_read_registers
 
     print_shim_info("macaroons_shim", std::string(__FUNCTION__));
 
     /* get the function from the request */
-    modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb);
+    modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb, addr_wr, nb_wr);
 
     /**
      * If the function is WRITE_STRING we reset tab_string
@@ -529,17 +653,37 @@ modbus_process_request_macaroons(modbus_t *ctx, uint8_t *req,
         memset(mb_mapping->tab_string, 0, MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
     } else {
         /**
+         * process_macaroon() needs an address range, which is tricky
+         * for write_and_read_registers, since it has two ranges
+         *
+         * we need to find the entire range that the function is trying to access
+         * since there's no way to handle disjoint caveats
+         *
+         * based on modbus.c, addr = write_addr, nb = write_nb, addr_wr = read_addr, nb_wr = read_nb
+         * */
+        if(*function == MODBUS_FC_WRITE_AND_READ_REGISTERS){
+            uint16_t write_addr = *addr;
+            uint16_t read_addr = *addr_wr;
+            int write_nb = *nb;
+            int read_nb = *nb_wr;
+            uint16_t write_addr_max = find_max_address(MODBUS_FC_WRITE_AND_READ_REGISTERS, write_addr, write_nb);
+            uint16_t read_addr_max = find_max_address(MODBUS_FC_WRITE_AND_READ_REGISTERS, read_addr, read_nb);
+            *addr = (write_addr < read_addr) ? write_addr : read_addr;
+            *nb = ((write_addr < read_addr) ? (read_addr_max - write_addr) : (write_addr_max - read_addr)) / 2;
+        }
+
+        /**
          * Extract the previously-received Macaroon
          * If verification is fails, return -1
          * If verification passes, continue to process the request
          * */
-        if(!process_macaroon(mb_mapping->tab_string, function)) {
+        if(!process_macaroon(mb_mapping->tab_string, *function, *addr, *nb)) {
             return -1;
         }
     }
 
     std::cout << std::endl;
-    print_modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb);
+    print_modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb, addr_wr, nb_wr);
     std::cout << std::endl;
     print_mb_mapping(mb_mapping);
 

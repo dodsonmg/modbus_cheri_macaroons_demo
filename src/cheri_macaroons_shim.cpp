@@ -79,9 +79,10 @@ print_mb_mapping(modbus_mapping_t* mb_mapping)
 /* Helper function to print the elements of a request. */
 void
 print_modbus_decompose_request(modbus_t *ctx, const uint8_t *req, int *offset,
-                               int *slave_id, int *function, uint16_t *addr, int *nb)
+                               int *slave_id, int *function, uint16_t *addr, int *nb,
+                               uint16_t *addr_wr, int *nb_wr)
 {
-    modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb);
+    modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb, addr_wr, nb_wr);
 
     std::cout << std::showbase // show the 0x prefix
               << std::internal // fill between the prefix and the number
@@ -94,6 +95,8 @@ print_modbus_decompose_request(modbus_t *ctx, const uint8_t *req, int *offset,
         get_modbus_function_name(*function) << ")" << std::endl;
     std::cout << "> " << "addr:\t\t\t" << *addr << std::endl;
     std::cout << "> " << "nb:\t\t\t" << *nb << std::endl;
+    std::cout << "> " << "addr_wr:\t\t" << *addr_wr << std::endl;
+    std::cout << "> " << "nb_wr:\t\t" << *nb_wr << std::endl;
 }
 
 /******************

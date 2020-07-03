@@ -52,7 +52,8 @@ std::string get_modbus_function_name(int function);
 void print_mb_mapping(modbus_mapping_t* mb_mapping);
 void print_modbus_decompose_request(modbus_t *ctx, const uint8_t *req,
                                     int *offset, int *slave_id, int *function,
-                                    uint16_t *addr, int *nb);
+                                    uint16_t *addr, int *nb,
+                                    uint16_t *addr_wr, int *nb_wr);
 
 /******************
  * CLIENT FUNCTIONS
