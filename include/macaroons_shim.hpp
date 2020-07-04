@@ -20,6 +20,7 @@ extern "C" {
  * SERVER FUNCTIONS
  *****************/
 
+int initialise_server_macaroon(std::string location, std::string key, std::string id);
 int modbus_receive_macaroons(modbus_t *ctx, uint8_t *req);
 int modbus_process_request_macaroons(modbus_t *ctx, uint8_t *req,
                                      int req_length, uint8_t *rsp, int *rsp_length,
@@ -29,6 +30,8 @@ int modbus_process_request_macaroons(modbus_t *ctx, uint8_t *req,
 /******************
  * CLIENT FUNCTIONS
  *****************/
+
+int initialise_client_macaroon(modbus_t *ctx);
 
 /**
  * no function required for read/write token

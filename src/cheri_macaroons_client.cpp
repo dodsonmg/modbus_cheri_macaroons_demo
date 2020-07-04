@@ -20,6 +20,7 @@ extern "C" {
 
 /* CHERI Macaroons */
 #include "cheri_macaroons_shim.hpp"
+#include "macaroons_shim.hpp"
 
 // ignore variadic arguments from the ASSERT_TRUE macro
 #pragma GCC diagnostic push
@@ -149,13 +150,25 @@ int main(int argc, char *argv[])
     /* STRING TESTS */
 
     printf("\nTEST READ/WRITE STRING:\n");
+
     rc = modbus_read_string(ctx, tab_rp_string);
-    printf("%s\n", std::string((char *)tab_rp_string).c_str());
-    printf("%zu\n", strlen((char *)tab_rp_string));
+    printf("1/2 modbus_read_string: ");
+    ASSERT_TRUE(rc == (int)strlen((char *)tab_rp_string), "FAILED (%d != %d)\n",
+                rc, (int)strlen((char *)tab_rp_string));
+
+    rc = modbus_write_string(ctx, tab_rp_string, (int)strlen((char *)tab_rp_string));
+    printf("2/2 modbus_write_string: ");
+    ASSERT_TRUE(rc == (int)strlen((char *)tab_rp_string), "FAILED (%d != %d)\n",
+                rc, (int)strlen((char *)tab_rp_string));
+
+    /* Initialise client_macaroon */
+    if(shim_type == MACAROONS || shim_type == CHERI_MACAROONS) {
+        rc = initialise_client_macaroon(ctx);
+    }
 
 /*****************************************************************************/
 /*****************************************************************************/
-    goto end_test;
+    // goto end_test;
 /*****************************************************************************/
 /*****************************************************************************/
 
