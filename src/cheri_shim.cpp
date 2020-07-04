@@ -235,6 +235,18 @@ int modbus_process_request_cheri(modbus_t *ctx, uint8_t *req,
             mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
             break;
 
+        case MODBUS_FC_READ_STRING:
+            /* we only need to be able to read and write the string (tab_string) used for Macaroons */
+            mb_mapping->tab_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_bits, 0);
+            mb_mapping->tab_input_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_input_bits, 0);
+            mb_mapping->tab_input_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_input_registers, 0);
+            mb_mapping->tab_registers = (uint16_t *)cheri_perms_and(mb_mapping->tab_registers, 0);
+            mb_mapping->tab_string = (uint8_t *)cheri_perms_and(mb_mapping->tab_string, CHERI_PERM_LOAD);
+
+            /* structure pointer should now only need to load values and capabilities */
+            mb_mapping = (modbus_mapping_t *)cheri_perms_and(mb_mapping, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
+            break;
+
         default:
             /* we shouldn't need to read or write coils or registers */
             mb_mapping->tab_bits = (uint8_t *)cheri_perms_and(mb_mapping->tab_bits, 0);

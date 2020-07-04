@@ -12,8 +12,8 @@ static std::string location = "https://www.modbus.com/macaroons/";
 static std::string expected_signature =
     "27c9baef16ae041625139857bfca2cebebdcba4ce6637c59ea2693107cf053ce";
 
-static int16_t default_address_min_caveat = 0x0000;
-static int16_t default_address_max_caveat = 0xFFFF;
+// static int16_t default_address_min_caveat = 0x0000;
+// static int16_t default_address_max_caveat = 0xFFFF;
 static std::string default_function_caveat = "READ-ONLY";
 static std::vector<int> default_function_caveats = {MODBUS_FC_READ_COILS, MODBUS_FC_WRITE_SINGLE_COIL, MODBUS_FC_WRITE_MULTIPLE_COILS};
 static macaroons::Macaroon client_macaroon;
@@ -45,13 +45,14 @@ create_function_caveat(std::string function_code) {
         fc |= 1<<MODBUS_FC_READ_INPUT_REGISTERS;
         fc |= 1<<MODBUS_FC_READ_EXCEPTION_STATUS;
         fc |= 1<<MODBUS_FC_REPORT_SLAVE_ID;
+        fc |= 1<<MODBUS_FC_READ_STRING;
     } else if(function_code == "WRITE-ONLY") {
         fc |= 1<<MODBUS_FC_WRITE_SINGLE_COIL;
         fc |= 1<<MODBUS_FC_WRITE_SINGLE_REGISTER;
         fc |= 1<<MODBUS_FC_WRITE_MULTIPLE_COILS;
         fc |= 1<<MODBUS_FC_WRITE_MULTIPLE_REGISTERS;
         fc |= 1<<MODBUS_FC_MASK_WRITE_REGISTER;
-        fc |= 1<<MODBUS_FC_WRITE_TOKEN;
+        fc |= 1<<MODBUS_FC_WRITE_STRING;
     } else {
         return "";
     }
@@ -182,7 +183,7 @@ find_max_address(int function, uint16_t addr, int nb)
         case MODBUS_FC_MASK_WRITE_REGISTER:
             addr_max = addr + 2;
             break;
-        case MODBUS_FC_WRITE_TOKEN:
+        case MODBUS_FC_WRITE_STRING:
             addr_max = addr + nb;
             break;
         default:
@@ -229,7 +230,7 @@ send_macaroon(modbus_t *ctx, int function, uint16_t addr, int nb)
     std::cout << display_marker << std::endl;
 
     std::string serialised = temp_macaroon.serialize();
-    rc = modbus_write_token(ctx, (uint8_t *)serialised.c_str(), (int)serialised.length());
+    rc = modbus_write_string(ctx, (uint8_t *)serialised.c_str(), (int)serialised.length());
 
     std::cout << display_marker << std::endl;
     if(rc == (int)serialised.length()) {
@@ -640,18 +641,19 @@ modbus_process_request_macaroons(modbus_t *ctx, uint8_t *req,
     modbus_decompose_request(ctx, req, offset, slave_id, function, addr, nb, addr_wr, nb_wr);
 
     /**
-     * If the function is WRITE_TOKEN we reset tab_string
+     * If the function is WRITE_STRING we reset tab_string
+     * If the function is READ_STRING, skip verification
      * If the function is anything else, we verify the Macaroon
      *
      * In both cases, we then call cheri_macaroons_shim:modbus_process_request()
      * */
-    if(*function == MODBUS_FC_WRITE_TOKEN) {
+    if(*function == MODBUS_FC_WRITE_STRING) {
         /**
          * Zero out the state variable where the Macaroon string is stored
          * then continue to process the request
          * */
         memset(mb_mapping->tab_string, 0, MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
-    } else {
+    } else if (*function != MODBUS_FC_READ_STRING) {
         /**
          * process_macaroon() needs an address range, which is tricky
          * for write_and_read_registers, since it has two ranges

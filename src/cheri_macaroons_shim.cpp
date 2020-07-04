@@ -57,6 +57,8 @@ get_modbus_function_name(int function)
             return "MODBUS_FC_MASK_WRITE_REGISTER";
         case MODBUS_FC_WRITE_AND_READ_REGISTERS:
             return "MODBUS_FC_WRITE_AND_READ_REGISTERS";
+        case MODBUS_FC_READ_STRING:
+            return "MODBUS_FC_READ_STRING";
         case MODBUS_FC_WRITE_STRING:
             return "MODBUS_FC_WRITE_STRING";
         default:

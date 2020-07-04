@@ -72,6 +72,7 @@ int main(int argc, char *argv[])
     const int NB_REPORT_SLAVE_ID = 10;
     uint8_t *tab_rp_bits = NULL;
     uint16_t *tab_rp_registers = NULL;
+    uint8_t *tab_rp_string = NULL;
     modbus_t *ctx = NULL;
     int i;
     uint8_t value;
@@ -141,6 +142,23 @@ int main(int argc, char *argv[])
     tab_rp_registers = (uint16_t *) malloc(nb_points * sizeof(uint16_t));
     memset(tab_rp_registers, 0, nb_points * sizeof(uint16_t));
 
+    /* Allocate and initialize the memory to store the string */
+    tab_rp_string = (uint8_t *)malloc(MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
+    memset(tab_rp_string, 0, MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
+
+    /* STRING TESTS */
+
+    printf("\nTEST READ/WRITE STRING:\n");
+    rc = modbus_read_string(ctx, tab_rp_string);
+    printf("%s\n", std::string((char *)tab_rp_string).c_str());
+    printf("%zu\n", strlen((char *)tab_rp_string));
+
+/*****************************************************************************/
+/*****************************************************************************/
+    goto end_test;
+/*****************************************************************************/
+/*****************************************************************************/
+
     printf("\nTEST WRITE/READ:\n");
 
     /** COIL BITS **/
@@ -162,7 +180,7 @@ int main(int argc, char *argv[])
 
 /*****************************************************************************/
 /*****************************************************************************/
-    // goto end_test;
+    goto end_test;
 /*****************************************************************************/
 /*****************************************************************************/
 
