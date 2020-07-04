@@ -148,18 +148,19 @@ int main(int argc, char *argv[])
     memset(tab_rp_string, 0, MODBUS_MAX_STRING_LENGTH * sizeof(uint8_t));
 
     /* STRING TESTS */
+    if(shim_type == MACAROONS || shim_type == CHERI_MACAROONS) {
+        printf("\nTEST READ/WRITE STRING:\n");
 
-    printf("\nTEST READ/WRITE STRING:\n");
+        rc = modbus_read_string(ctx, tab_rp_string);
+        printf("1/2 modbus_read_string: ");
+        ASSERT_TRUE(rc == (int)strlen((char *)tab_rp_string), "FAILED (%d != %d)\n",
+                    rc, (int)strlen((char *)tab_rp_string));
 
-    rc = modbus_read_string(ctx, tab_rp_string);
-    printf("1/2 modbus_read_string: ");
-    ASSERT_TRUE(rc == (int)strlen((char *)tab_rp_string), "FAILED (%d != %d)\n",
-                rc, (int)strlen((char *)tab_rp_string));
-
-    rc = modbus_write_string(ctx, tab_rp_string, (int)strlen((char *)tab_rp_string));
-    printf("2/2 modbus_write_string: ");
-    ASSERT_TRUE(rc == (int)strlen((char *)tab_rp_string), "FAILED (%d != %d)\n",
-                rc, (int)strlen((char *)tab_rp_string));
+        rc = modbus_write_string(ctx, tab_rp_string, (int)strlen((char *)tab_rp_string));
+        printf("2/2 modbus_write_string: ");
+        ASSERT_TRUE(rc == (int)strlen((char *)tab_rp_string), "FAILED (%d != %d)\n",
+                    rc, (int)strlen((char *)tab_rp_string));
+    }
 
     /* Initialise client_macaroon */
     if(shim_type == MACAROONS || shim_type == CHERI_MACAROONS) {
@@ -193,7 +194,7 @@ int main(int argc, char *argv[])
 
 /*****************************************************************************/
 /*****************************************************************************/
-    goto end_test;
+    // goto end_test;
 /*****************************************************************************/
 /*****************************************************************************/
 
