@@ -18,6 +18,9 @@
  * TODO:  Consider copying everything returned from libmodbus to a new
  * pointer and returning that to the caller to libmodbus cannot retain
  * a fully-privileged pointer to the structure
+ *
+ * Alternately, we can just implement the allocation function from
+ * libmodbus:modbus_mapping_new_start_address() here
  * */
 modbus_mapping_t* modbus_mapping_new_start_address_cheri(
     unsigned int start_bits, unsigned int nb_bits,
